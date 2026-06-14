@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div id="loginPage" class="auth-screen">
+    <section class="auth-card">
+      <h1>Вхід</h1>
+      <div
+        id="g_id_onload"
+        data-client_id="758097653129-i5cda00k5b73uudvmmalj2jdvk70t5jr.apps.googleusercontent.com"
+        data-callback="handleCredentialResponse"
+        data-auto_prompt="false"
+        data-ux_mode="popup"
+      ></div>
+      <div class="google-button-wrap">
+        <div
+          class="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="outline"
+          data-shape="pill"
+          data-text="continue_with"
+          data-width="250"
+        ></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="loader" class="loader-screen hidden" aria-live="polite">
+    <div class="loader-grid" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div id="twoFactorPage" class="auth-screen hidden">
+    <section class="auth-card two-factor-card">
+      <h1>Підтвердження 2FA</h1>
+      <input
+        id="twoFactorCode"
+        class="two-factor-code"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        maxlength="6"
+        placeholder="000000"
+        aria-label="Код 2FA"
+      >
+      <div class="auth-actions">
+        <button id="twoFactorSubmitBtn" class="button button-primary">
+          Підтвердити
+        </button>
+        <button id="twoFactorCancelBtn" class="button button-secondary">
+          Скасувати
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div id="deniedPage" class="auth-screen hidden">
+    <section class="auth-card">
+      <h1>Немає доступу</h1>
+      <button id="deniedHubBtn" class="button button-secondary">
+        Hub
+      </button>
+    </section>
+  </div>
+
+  <main id="app" class="app hidden">
+    <header class="topbar">
+      <div>
+        <h1 id="appTitle"></h1>
+        <p id="userName"></p>
+      </div>
+      <button id="hubBtn" class="button button-secondary topbar-button">
+        Hub
+      </button>
+    </header>
+
+    <nav id="dashboardTabs" class="tabs" aria-label="Дашборди"></nav>
+
+    <section class="dashboard-shell">
+      <header class="dashboard-header">
+        <h2 id="dashboardTitle"></h2>
+        <div class="legend" aria-label="Позначення">
+          <span><i class="legend-unit"></i>Блок</span>
+          <span><i class="legend-system"></i>ІКС</span>
+        </div>
+      </header>
+
+      <div id="dashboardViewport" class="dashboard-viewport">
+        <div id="dashboardCanvas" class="dashboard-canvas">
+          <svg
+            id="dashboardLinks"
+            class="dashboard-links"
+            aria-hidden="true"
+          ></svg>
+          <div id="dashboardNodes" class="dashboard-nodes"></div>
+        </div>
+      </div>
+
+      <div id="dashboardEmpty" class="dashboard-empty hidden"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <section id="sessionWarning" class="session-warning hidden">
+    <span>Сесія завершиться через <strong id="sessionCountdown"></strong></span>
+    <button id="renewSessionBtn" class="button button-primary">Оновити</button>
+  </section>
+
+  <div id="sessionExpired" class="session-overlay hidden">
+    <section class="auth-card">
+      <h1>Сесія завершилась</h1>
+      <button id="expiredSessionBtn" class="button button-primary">
+        Оновити
+      </button>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
