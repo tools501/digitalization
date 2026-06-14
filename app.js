@@ -1,4 +1,4 @@
-const API_URL = 'PASTE_DIGITALIZATION_GAS_URL_HERE';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxyMRYjANF1zyENakj_u27VqYq7DDO11mEwG5EgJrdkUskNty-azjNHGS-8qw2gUxB-/exec';
 const HUB_API_URL =
   'https://script.google.com/macros/s/AKfycbyAHpUfM1RrPJbamCVcc5rGhUgRKoLRKSULBGnCNGLyCSaFU5lp7SX2Ge1Wwv9YEV5-Sg/exec';
 const HUB_URL = '/hub/';
