@@ -359,15 +359,18 @@ function renderActiveDashboard() {
 }
 
 function getDashboardBounds(nodes) {
-  const padding = 60;
+  const padding = 36;
+  const minimumWidth = activeDashboardId === 'systems'
+    ? 620
+    : 760;
   const width = Math.max(
-    980,
+    minimumWidth,
     ...nodes.map(node =>
       Number(node.x) + Number(node.width) + padding
     )
   );
   const height = Math.max(
-    520,
+    480,
     ...nodes.map(node =>
       Number(node.y) + Number(node.height) + padding
     )
@@ -382,13 +385,21 @@ function createNode(node) {
 
   element.className = 'dashboard-node';
   element.dataset.color = node.color || node.block_type;
+  element.dataset.shape = node.shape || 'rect';
   element.style.left = `${Number(node.x)}px`;
   element.style.top = `${Number(node.y)}px`;
   element.style.width = `${Number(node.width)}px`;
-  element.style.minHeight = `${Number(node.height)}px`;
+  element.style.height = `${Number(node.height)}px`;
 
-  if (node.block_type === 'system') {
+  if (
+    node.block_type === 'system' ||
+    node.block_type === 'system_group'
+  ) {
     element.classList.add('dashboard-node-system');
+  }
+
+  if (node.block_type === 'system_group') {
+    element.classList.add('dashboard-node-group');
   }
 
   title.className = 'dashboard-node-title';
@@ -397,6 +408,7 @@ function createNode(node) {
 
   if (
     node.block_type === 'unit' &&
+    node.dashboard_id === 'structure' &&
     Array.isArray(node.systems) &&
     node.systems.length
   ) {
