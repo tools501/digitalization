@@ -278,8 +278,6 @@ button {
 
 .dashboard-canvas {
   position: relative;
-  min-width: 980px;
-  min-height: 520px;
   margin: 0 auto;
 }
 
@@ -292,8 +290,13 @@ button {
 }
 
 .dashboard-links {
+  z-index: 1;
   overflow: visible;
   pointer-events: none;
+}
+
+.dashboard-nodes {
+  z-index: 2;
 }
 
 .dashboard-link {
@@ -320,6 +323,7 @@ button {
   box-shadow: 0 4px 12px rgba(23, 25, 28, .08);
   text-align: center;
   transform: translateZ(0);
+  z-index: 3;
 }
 
 .dashboard-node-title {
@@ -331,6 +335,30 @@ button {
 .dashboard-node-system {
   border-color: #9cc9b6;
   background: #e6f3ed;
+}
+
+.dashboard-node-group {
+  z-index: 0;
+  overflow: visible;
+  padding: 0;
+  border: 2px solid #b9a84c;
+  border-radius: 50%;
+  background: rgba(247, 240, 213, .38);
+  box-shadow: none;
+}
+
+.dashboard-node-group .dashboard-node-title {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  min-width: max-content;
+  padding: 3px 7px;
+  border: 1px solid rgba(185, 168, 76, .52);
+  border-radius: 5px;
+  background: #fffdf4;
+  color: #514a25;
+  font-size: 11px;
+  transform: translateX(-50%);
 }
 
 .dashboard-node[data-color="purple"] {
@@ -356,6 +384,21 @@ button {
 .dashboard-node[data-color="green"] {
   background: #e6f3ed;
   border-color: #9cc9b6;
+}
+
+.dashboard-node[data-color="red"] {
+  background: #f7e4e2;
+  border-color: #d9aaa5;
+}
+
+.dashboard-node[data-color="orange"] {
+  background: #f8e8d6;
+  border-color: #dcb88d;
+}
+
+.dashboard-node[data-color="olive"]:not(.dashboard-node-group) {
+  background: #f2f1cf;
+  border-color: #c4c26b;
 }
 
 .node-systems {
