@@ -87,21 +87,22 @@
     <section class="dashboard-shell">
       <header class="dashboard-header">
         <h2 id="dashboardTitle"></h2>
-        <div class="legend" aria-label="Позначення">
-          <span><i class="legend-unit"></i>Блок</span>
-          <span><i class="legend-system"></i>ІКС</span>
+        <div class="zoom-controls" aria-label="Масштаб">
+          <button id="zoomOutBtn" type="button" title="Зменшити">−</button>
+          <button id="zoomResetBtn" type="button" title="За розміром">
+            100%
+          </button>
+          <button id="zoomInBtn" type="button" title="Збільшити">+</button>
         </div>
       </header>
 
       <div id="dashboardViewport" class="dashboard-viewport">
-        <div id="dashboardCanvas" class="dashboard-canvas">
-          <svg
-            id="dashboardLinks"
-            class="dashboard-links"
-            aria-hidden="true"
-          ></svg>
-          <div id="dashboardNodes" class="dashboard-nodes"></div>
+        <div id="diagramLoader" class="diagram-loader hidden">
+          <div class="loader-grid" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
         </div>
+        <img id="diagramImage" class="diagram-image hidden" alt="">
       </div>
 
       <div id="dashboardEmpty" class="dashboard-empty hidden"></div>
