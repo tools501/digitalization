@@ -220,16 +220,21 @@ button {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .dashboard-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 58px;
   padding: 0 18px;
   border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+  background: var(--surface);
 }
 
 .dashboard-header h2 {
@@ -269,6 +274,7 @@ button {
     linear-gradient(90deg, #e9ebee 1px, transparent 1px),
     var(--surface-soft);
   background-size: 24px 24px;
+  border-radius: 0 0 8px 8px;
 }
 
 .diagram-loader {
