@@ -264,7 +264,11 @@ button {
   min-height: 520px;
   overflow: auto;
   padding: 24px;
-  background: var(--surface-soft);
+  background:
+    linear-gradient(#e9ebee 1px, transparent 1px),
+    linear-gradient(90deg, #e9ebee 1px, transparent 1px),
+    var(--surface-soft);
+  background-size: 24px 24px;
 }
 
 .diagram-loader {
