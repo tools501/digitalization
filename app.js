@@ -329,6 +329,17 @@ async function renderActiveDiagram() {
   empty.classList.add('hidden');
   document.getElementById('dashboardTitle').textContent =
     diagram.title;
+  const titleLink = document.getElementById('dashboardTitle');
+
+  if (diagram.sourceUrl) {
+    titleLink.href = diagram.sourceUrl;
+    titleLink.title = 'Відкрити в draw.io';
+    titleLink.removeAttribute('aria-disabled');
+  } else {
+    titleLink.removeAttribute('href');
+    titleLink.removeAttribute('title');
+    titleLink.setAttribute('aria-disabled', 'true');
+  }
   image.classList.add('hidden');
   loader.classList.remove('hidden');
 
