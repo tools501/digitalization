@@ -4,6 +4,7 @@ const HUB_API_URL =
 const HUB_URL = '/hub/';
 const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
 const REQUEST_TIMEOUT_MS = 25000;
+const DIAGRAM_BASE_SCALE = 0.5;
 
 let authToken = '';
 let pendingTwoFactorAuth = null;
@@ -11,9 +12,6 @@ let diagrams = [];
 let activeDiagramId = '';
 let diagramZoom = 100;
 const diagramUrls = new Map();
-let sessionWarningTimer = null;
-let sessionExpiredTimer = null;
-let sessionCountdownTimer = null;
 
 function getSharedAuthToken() {
   try {
@@ -247,7 +245,6 @@ async function authenticateWithToken(token, options = {}) {
     }
 
     applyBootstrap(result.data);
-    startSessionTimer(token);
     showOnly('app');
   } catch (error) {
     console.error(error);
@@ -390,8 +387,9 @@ function base64ToBytes(base64) {
 
 function applyDiagramZoom() {
   const image = document.getElementById('diagramImage');
+  const renderedWidth = diagramZoom * DIAGRAM_BASE_SCALE;
 
-  image.style.width = `${diagramZoom}%`;
+  image.style.width = `${renderedWidth}%`;
   document.getElementById('zoomResetBtn').textContent =
     `${diagramZoom}%`;
   document.getElementById('zoomOutBtn').disabled =
@@ -411,88 +409,6 @@ function changeDiagramZoom(change) {
 function resetDiagramZoom() {
   diagramZoom = 100;
   applyDiagramZoom();
-}
-
-function decodeTokenPayload(token) {
-  try {
-    const payload = token.split('.')[1]
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-    const padded = payload.padEnd(
-      Math.ceil(payload.length / 4) * 4,
-      '='
-    );
-
-    return JSON.parse(atob(padded));
-  } catch (error) {
-    return null;
-  }
-}
-
-function startSessionTimer(token) {
-  clearSessionTimers();
-
-  const payload = decodeTokenPayload(token);
-  const expiresAt = Number(payload && payload.exp) * 1000;
-
-  if (!expiresAt) {
-    return;
-  }
-
-  const warningAt = Math.max(
-    0,
-    expiresAt - Date.now() - 5 * 60 * 1000
-  );
-  const expiresIn = Math.max(0, expiresAt - Date.now());
-
-  sessionWarningTimer = setTimeout(
-    showSessionWarning,
-    warningAt
-  );
-  sessionExpiredTimer = setTimeout(
-    expireSession,
-    expiresIn
-  );
-}
-
-function showSessionWarning() {
-  const warning = document.getElementById('sessionWarning');
-
-  warning.classList.remove('hidden');
-  updateSessionCountdown();
-  sessionCountdownTimer = setInterval(
-    updateSessionCountdown,
-    1000
-  );
-}
-
-function updateSessionCountdown() {
-  const payload = decodeTokenPayload(authToken);
-  const remaining = Math.max(
-    0,
-    Number(payload && payload.exp) * 1000 - Date.now()
-  );
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-
-  document.getElementById('sessionCountdown').textContent =
-    `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function expireSession() {
-  authToken = '';
-  clearSharedAuthToken();
-  clearSessionTimers();
-  document.getElementById('sessionWarning')
-    .classList.add('hidden');
-  document.getElementById('sessionExpired')
-    .classList.remove('hidden');
-}
-
-function clearSessionTimers() {
-  clearTimeout(sessionWarningTimer);
-  clearTimeout(sessionExpiredTimer);
-  clearInterval(sessionCountdownTimer);
 }
 
 function goToHub() {
@@ -559,10 +475,6 @@ document
 document.getElementById('hubBtn')
   .addEventListener('click', goToHub);
 document.getElementById('deniedHubBtn')
-  .addEventListener('click', goToHub);
-document.getElementById('renewSessionBtn')
-  .addEventListener('click', goToHub);
-document.getElementById('expiredSessionBtn')
   .addEventListener('click', goToHub);
 document.getElementById('zoomOutBtn')
   .addEventListener('click', () => changeDiagramZoom(-25));
