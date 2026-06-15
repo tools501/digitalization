@@ -239,183 +239,51 @@ button {
   letter-spacing: 0;
 }
 
-.legend {
+.zoom-controls {
   display: flex;
-  gap: 16px;
-  color: var(--muted);
-  font-size: 12px;
+  gap: 4px;
 }
 
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.zoom-controls button {
+  min-width: 38px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
 }
 
-.legend i {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-}
-
-.legend-unit {
-  background: #dce9f5;
-}
-
-.legend-system {
-  background: #dcefe7;
+.zoom-controls button:disabled {
+  cursor: default;
+  opacity: .35;
 }
 
 .dashboard-viewport {
+  position: relative;
+  min-height: 520px;
   overflow: auto;
   padding: 24px;
-  background:
-    linear-gradient(#e9ebee 1px, transparent 1px),
-    linear-gradient(90deg, #e9ebee 1px, transparent 1px),
-    var(--surface-soft);
-  background-size: 24px 24px;
+  background: var(--surface-soft);
 }
 
-.dashboard-canvas {
-  position: relative;
-  margin: 0 auto;
-}
-
-.dashboard-links,
-.dashboard-nodes {
+.diagram-loader {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 520px;
+}
+
+.diagram-image {
+  display: block;
   width: 100%;
-  height: 100%;
-}
-
-.dashboard-links {
-  z-index: 1;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.dashboard-nodes {
-  z-index: 2;
-}
-
-.dashboard-link {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-}
-
-.dashboard-link.system {
-  stroke: #70a58f;
-  stroke-dasharray: 5 4;
-}
-
-.dashboard-node {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 10px 12px;
-  border: 1px solid rgba(23, 25, 28, .16);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 4px 12px rgba(23, 25, 28, .08);
-  text-align: center;
-  transform: translateZ(0);
-  z-index: 3;
-}
-
-.dashboard-node-title {
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.25;
-}
-
-.dashboard-node-system {
-  border-color: #9cc9b6;
-  background: #e6f3ed;
-}
-
-.dashboard-node-group {
-  z-index: 0;
-  overflow: visible;
-  padding: 0;
-  border: 2px solid #b9a84c;
-  border-radius: 50%;
-  background: rgba(247, 240, 213, .38);
-  box-shadow: none;
-}
-
-.dashboard-node-group .dashboard-node-title {
-  position: absolute;
-  top: -15px;
-  left: 50%;
-  min-width: max-content;
-  padding: 3px 7px;
-  border: 1px solid rgba(185, 168, 76, .52);
-  border-radius: 5px;
-  background: #fffdf4;
-  color: #514a25;
-  font-size: 11px;
-  transform: translateX(-50%);
-}
-
-.dashboard-node[data-color="purple"] {
-  background: #eee9f5;
-  border-color: #c7b8da;
-}
-
-.dashboard-node[data-color="yellow"] {
-  background: #f7f0d5;
-  border-color: #d8c982;
-}
-
-.dashboard-node[data-color="blue"] {
-  background: #e4eef7;
-  border-color: #abc4db;
-}
-
-.dashboard-node[data-color="gray"] {
-  background: #eceeef;
-  border-color: #c7cbcf;
-}
-
-.dashboard-node[data-color="green"] {
-  background: #e6f3ed;
-  border-color: #9cc9b6;
-}
-
-.dashboard-node[data-color="red"] {
-  background: #f7e4e2;
-  border-color: #d9aaa5;
-}
-
-.dashboard-node[data-color="orange"] {
-  background: #f8e8d6;
-  border-color: #dcb88d;
-}
-
-.dashboard-node[data-color="olive"]:not(.dashboard-node-group) {
-  background: #f2f1cf;
-  border-color: #c4c26b;
-}
-
-.node-systems {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 7px;
-}
-
-.system-chip {
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, .72);
-  color: #3f4b45;
-  font-size: 10px;
-  font-weight: 650;
+  height: auto;
+  max-width: none;
+  margin: 0 auto;
+  transition: width .16s ease;
 }
 
 .dashboard-empty {
@@ -490,12 +358,21 @@ button {
     padding: 14px;
   }
 
-  .legend {
-    width: 100%;
+  .zoom-controls {
+    align-self: stretch;
+  }
+
+  .zoom-controls button {
+    flex: 1;
   }
 
   .dashboard-viewport {
+    min-height: 360px;
     padding: 14px;
+  }
+
+  .diagram-loader {
+    min-height: 360px;
   }
 
   .session-warning {
