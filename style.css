@@ -41,8 +41,7 @@ button {
 }
 
 .auth-screen,
-.loader-screen,
-.session-overlay {
+.loader-screen {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -306,28 +305,6 @@ button {
   box-shadow: var(--shadow);
 }
 
-.session-warning {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 150;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 10px 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  font-size: 13px;
-}
-
-.session-overlay {
-  z-index: 180;
-  background: rgba(243, 244, 246, .84);
-  backdrop-filter: blur(8px);
-}
-
 @media (max-width: 760px) {
   .app {
     width: min(100% - 24px, 1440px);
@@ -375,10 +352,4 @@ button {
     min-height: 360px;
   }
 
-  .session-warning {
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
-    justify-content: space-between;
-  }
 }
