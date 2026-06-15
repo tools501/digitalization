@@ -4,7 +4,7 @@ const HUB_API_URL =
 const HUB_URL = '/hub/';
 const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
 const REQUEST_TIMEOUT_MS = 25000;
-const DIAGRAM_BASE_SCALE = 0.5;
+const MOBILE_VIEWPORT_QUERY = '(max-width: 760px)';
 
 let authToken = '';
 let pendingTwoFactorAuth = null;
@@ -387,7 +387,12 @@ function base64ToBytes(base64) {
 
 function applyDiagramZoom() {
   const image = document.getElementById('diagramImage');
-  const renderedWidth = diagramZoom * DIAGRAM_BASE_SCALE;
+  const baseScale = window.matchMedia(
+    MOBILE_VIEWPORT_QUERY
+  ).matches
+    ? 1
+    : 0.5;
+  const renderedWidth = diagramZoom * baseScale;
 
   image.style.width = `${renderedWidth}%`;
   document.getElementById('zoomResetBtn').textContent =
@@ -482,5 +487,7 @@ document.getElementById('zoomResetBtn')
   .addEventListener('click', resetDiagramZoom);
 document.getElementById('zoomInBtn')
   .addEventListener('click', () => changeDiagramZoom(25));
+window.matchMedia(MOBILE_VIEWPORT_QUERY)
+  .addEventListener('change', applyDiagramZoom);
 
 trySharedSession();
