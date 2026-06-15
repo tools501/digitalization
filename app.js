@@ -7,8 +7,10 @@ const REQUEST_TIMEOUT_MS = 25000;
 
 let authToken = '';
 let pendingTwoFactorAuth = null;
-let dashboards = [];
-let activeDashboardId = '';
+let diagrams = [];
+let activeDiagramId = '';
+let diagramZoom = 100;
+const diagramUrls = new Map();
 let sessionWarningTimer = null;
 let sessionExpiredTimer = null;
 let sessionCountdownTimer = null;
@@ -266,8 +268,8 @@ function applyBootstrap(data) {
   const ui = data.ui || {};
   const user = data.user || {};
 
-  dashboards = Array.isArray(data.dashboards)
-    ? data.dashboards
+  diagrams = Array.isArray(data.diagrams)
+    ? data.diagrams
     : [];
 
   document.title = ui.appTitle || 'Dashboard';
@@ -278,11 +280,11 @@ function applyBootstrap(data) {
   document.getElementById('dashboardEmpty').textContent =
     ui.emptyDashboard || 'Дані відсутні';
 
-  activeDashboardId =
-    dashboards[0] && dashboards[0].dashboard_id || '';
+  activeDiagramId =
+    diagrams[0] && diagrams[0].id || '';
 
   renderTabs();
-  renderActiveDashboard();
+  renderActiveDiagram();
 }
 
 function renderTabs() {
@@ -290,208 +292,125 @@ function renderTabs() {
 
   tabs.replaceChildren();
 
-  dashboards.forEach(dashboard => {
+  diagrams.forEach(diagram => {
     const button = document.createElement('button');
 
     button.type = 'button';
     button.className = 'tab-button';
-    button.textContent = dashboard.title;
+    button.textContent = diagram.title;
     button.classList.toggle(
       'active',
-      dashboard.dashboard_id === activeDashboardId
+      diagram.id === activeDiagramId
     );
     button.addEventListener('click', () => {
-      activeDashboardId = dashboard.dashboard_id;
+      activeDiagramId = diagram.id;
+      diagramZoom = 100;
       renderTabs();
-      renderActiveDashboard();
+      renderActiveDiagram();
     });
     tabs.appendChild(button);
   });
 }
 
-function renderActiveDashboard() {
-  const dashboard = dashboards.find(item =>
-    item.dashboard_id === activeDashboardId
+async function renderActiveDiagram() {
+  const diagram = diagrams.find(item =>
+    item.id === activeDiagramId
   );
-  const canvas = document.getElementById('dashboardCanvas');
-  const nodesLayer = document.getElementById('dashboardNodes');
-  const linksLayer = document.getElementById('dashboardLinks');
   const viewport = document.getElementById('dashboardViewport');
+  const image = document.getElementById('diagramImage');
+  const loader = document.getElementById('diagramLoader');
   const empty = document.getElementById('dashboardEmpty');
 
-  nodesLayer.replaceChildren();
-  linksLayer.replaceChildren();
-
-  if (!dashboard || !dashboard.nodes.length) {
+  if (!diagram) {
     viewport.classList.add('hidden');
     empty.classList.remove('hidden');
-    document.getElementById('dashboardTitle').textContent =
-      dashboard ? dashboard.title : '';
+    document.getElementById('dashboardTitle').textContent = '';
     return;
   }
 
   viewport.classList.remove('hidden');
   empty.classList.add('hidden');
   document.getElementById('dashboardTitle').textContent =
-    dashboard.title;
+    diagram.title;
+  image.classList.add('hidden');
+  loader.classList.remove('hidden');
 
-  const bounds = getDashboardBounds(dashboard.nodes);
+  try {
+    let url = diagramUrls.get(diagram.id);
 
-  canvas.style.width = `${bounds.width}px`;
-  canvas.style.height = `${bounds.height}px`;
-  canvas.style.minHeight = `${bounds.height}px`;
-  linksLayer.setAttribute(
-    'viewBox',
-    `0 0 ${bounds.width} ${bounds.height}`
-  );
+    if (!url) {
+      const result = await projectApi(
+        'getDiagram',
+        { id: diagram.id }
+      );
 
-  dashboard.nodes.forEach(node => {
-    nodesLayer.appendChild(createNode(node));
-  });
+      if (!result.success) {
+        throw new Error(result.error || 'DIAGRAM_LOAD_FAILED');
+      }
 
-  dashboard.links.forEach(link => {
-    const path = createLink(link, dashboard.nodes);
+      const bytes = base64ToBytes(result.data.base64);
+      const blob = new Blob(
+        [bytes],
+        { type: result.data.mimeType || 'image/svg+xml' }
+      );
 
-    if (path) {
-      linksLayer.appendChild(path);
+      url = URL.createObjectURL(blob);
+      diagramUrls.set(diagram.id, url);
     }
-  });
+
+    if (activeDiagramId !== diagram.id) {
+      return;
+    }
+
+    image.src = url;
+    image.alt = diagram.title;
+    applyDiagramZoom();
+    image.classList.remove('hidden');
+  } catch (error) {
+    console.error(error);
+    showToast('Не вдалося завантажити схему');
+    image.classList.add('hidden');
+  } finally {
+    if (activeDiagramId === diagram.id) {
+      loader.classList.add('hidden');
+    }
+  }
 }
 
-function getDashboardBounds(nodes) {
-  const padding = 36;
-  const minimumWidth = activeDashboardId === 'systems'
-    ? 620
-    : 760;
-  const width = Math.max(
-    minimumWidth,
-    ...nodes.map(node =>
-      Number(node.x) + Number(node.width) + padding
-    )
-  );
-  const height = Math.max(
-    480,
-    ...nodes.map(node =>
-      Number(node.y) + Number(node.height) + padding
-    )
-  );
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
 
-  return { width, height };
+  for (let index = 0; index < binary.length; index++) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
 }
 
-function createNode(node) {
-  const element = document.createElement('article');
-  const title = document.createElement('div');
+function applyDiagramZoom() {
+  const image = document.getElementById('diagramImage');
 
-  element.className = 'dashboard-node';
-  element.dataset.color = node.color || node.block_type;
-  element.dataset.shape = node.shape || 'rect';
-  element.style.left = `${Number(node.x)}px`;
-  element.style.top = `${Number(node.y)}px`;
-  element.style.width = `${Number(node.width)}px`;
-  element.style.height = `${Number(node.height)}px`;
-
-  if (
-    node.block_type === 'system' ||
-    node.block_type === 'system_group'
-  ) {
-    element.classList.add('dashboard-node-system');
-  }
-
-  if (node.block_type === 'system_group') {
-    element.classList.add('dashboard-node-group');
-  }
-
-  title.className = 'dashboard-node-title';
-  title.textContent = node.title;
-  element.appendChild(title);
-
-  if (
-    node.block_type === 'unit' &&
-    node.dashboard_id === 'structure' &&
-    Array.isArray(node.systems) &&
-    node.systems.length
-  ) {
-    const systems = document.createElement('div');
-
-    systems.className = 'node-systems';
-
-    node.systems.forEach(system => {
-      const chip = document.createElement('span');
-
-      chip.className = 'system-chip';
-      chip.textContent = system.name;
-      systems.appendChild(chip);
-    });
-
-    element.appendChild(systems);
-  }
-
-  return element;
+  image.style.width = `${diagramZoom}%`;
+  document.getElementById('zoomResetBtn').textContent =
+    `${diagramZoom}%`;
+  document.getElementById('zoomOutBtn').disabled =
+    diagramZoom <= 50;
+  document.getElementById('zoomInBtn').disabled =
+    diagramZoom >= 250;
 }
 
-function createLink(link, nodes) {
-  const source = nodes.find(node =>
-    node.node_id === link.source_id
+function changeDiagramZoom(change) {
+  diagramZoom = Math.min(
+    250,
+    Math.max(50, diagramZoom + change)
   );
-  const target = nodes.find(node =>
-    node.node_id === link.target_id
-  );
+  applyDiagramZoom();
+}
 
-  if (!source || !target) {
-    return null;
-  }
-
-  const isSystem = link.type === 'system';
-  const start = isSystem
-    ? {
-        x: Number(source.x) + Number(source.width),
-        y: Number(source.y) + Number(source.height) / 2
-      }
-    : {
-        x: Number(source.x) + Number(source.width) / 2,
-        y: Number(source.y) + Number(source.height)
-      };
-  const end = isSystem
-    ? {
-        x: Number(target.x),
-        y: Number(target.y) + Number(target.height) / 2
-      }
-    : {
-        x: Number(target.x) + Number(target.width) / 2,
-        y: Number(target.y)
-      };
-  const path = document.createElementNS(
-    'http://www.w3.org/2000/svg',
-    'path'
-  );
-  let d;
-
-  if (isSystem) {
-    const distance = Math.max(80, (end.x - start.x) * .45);
-    d = [
-      `M ${start.x} ${start.y}`,
-      `C ${start.x + distance} ${start.y},`,
-      `${end.x - distance} ${end.y},`,
-      `${end.x} ${end.y}`
-    ].join(' ');
-  } else {
-    const middleY = start.y + (end.y - start.y) / 2;
-    d = [
-      `M ${start.x} ${start.y}`,
-      `L ${start.x} ${middleY}`,
-      `L ${end.x} ${middleY}`,
-      `L ${end.x} ${end.y}`
-    ].join(' ');
-  }
-
-  path.setAttribute('d', d);
-  path.setAttribute(
-    'class',
-    `dashboard-link ${isSystem ? 'system' : ''}`
-  );
-
-  return path;
+function resetDiagramZoom() {
+  diagramZoom = 100;
+  applyDiagramZoom();
 }
 
 function decodeTokenPayload(token) {
@@ -645,5 +564,11 @@ document.getElementById('renewSessionBtn')
   .addEventListener('click', goToHub);
 document.getElementById('expiredSessionBtn')
   .addEventListener('click', goToHub);
+document.getElementById('zoomOutBtn')
+  .addEventListener('click', () => changeDiagramZoom(-25));
+document.getElementById('zoomResetBtn')
+  .addEventListener('click', resetDiagramZoom);
+document.getElementById('zoomInBtn')
+  .addEventListener('click', () => changeDiagramZoom(25));
 
 trySharedSession();
