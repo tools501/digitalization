@@ -5,11 +5,14 @@ const HUB_URL = '/hub/';
 const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
 const REQUEST_TIMEOUT_MS = 25000;
 const MOBILE_VIEWPORT_QUERY = '(max-width: 760px)';
+const ICS_REGISTRY_TAB_ID = 'ics-registry';
 
 let authToken = '';
 let pendingTwoFactorAuth = null;
 let diagrams = [];
-let activeDiagramId = '';
+let icsSystems = [];
+let icsOptions = { units: [], commands: [] };
+let activeDiagramId = ICS_REGISTRY_TAB_ID;
 let diagramZoom = 100;
 const diagramUrls = new Map();
 
@@ -268,6 +271,10 @@ function applyBootstrap(data) {
   diagrams = Array.isArray(data.diagrams)
     ? data.diagrams
     : [];
+  icsSystems = Array.isArray(data.icsSystems)
+    ? data.icsSystems
+    : [];
+  icsOptions = data.icsOptions || { units: [], commands: [] };
 
   document.title = ui.appTitle || 'Dashboard';
   document.getElementById('appTitle').textContent =
@@ -277,11 +284,10 @@ function applyBootstrap(data) {
   document.getElementById('dashboardEmpty').textContent =
     ui.emptyDashboard || 'Дані відсутні';
 
-  activeDiagramId =
-    diagrams[0] && diagrams[0].id || '';
+  activeDiagramId = ICS_REGISTRY_TAB_ID;
 
   renderTabs();
-  renderActiveDiagram();
+  renderCurrentView();
 }
 
 function renderTabs() {
@@ -289,24 +295,226 @@ function renderTabs() {
 
   tabs.replaceChildren();
 
-  diagrams.forEach(diagram => {
-    const button = document.createElement('button');
+  tabs.appendChild(createTabButton(
+    ICS_REGISTRY_TAB_ID,
+    'Облік ІКС'
+  ));
 
-    button.type = 'button';
-    button.className = 'tab-button';
-    button.textContent = diagram.title;
-    button.classList.toggle(
-      'active',
-      diagram.id === activeDiagramId
-    );
-    button.addEventListener('click', () => {
-      activeDiagramId = diagram.id;
-      diagramZoom = 100;
-      renderTabs();
-      renderActiveDiagram();
-    });
-    tabs.appendChild(button);
+  diagrams.forEach(diagram => {
+    tabs.appendChild(createTabButton(diagram.id, diagram.title));
   });
+}
+
+function createTabButton(id, title) {
+  const button = document.createElement('button');
+
+  button.type = 'button';
+  button.className = 'tab-button';
+  button.textContent = title;
+  button.classList.toggle('active', id === activeDiagramId);
+  button.addEventListener('click', () => {
+    activeDiagramId = id;
+    diagramZoom = 100;
+    renderTabs();
+    renderCurrentView();
+  });
+
+  return button;
+}
+
+function renderCurrentView() {
+  const registry = document.getElementById('icsRegistry');
+  const dashboard = document.getElementById('dashboardShell');
+  const app = document.getElementById('app');
+  const isRegistry = activeDiagramId === ICS_REGISTRY_TAB_ID;
+
+  registry.classList.toggle('hidden', !isRegistry);
+  dashboard.classList.toggle('hidden', isRegistry);
+  app.classList.toggle('registry-mode', isRegistry);
+
+  if (isRegistry) {
+    renderIcsList();
+    return;
+  }
+
+  renderActiveDiagram();
+}
+
+function renderIcsList() {
+  const list = document.getElementById('icsList');
+  const empty = document.getElementById('icsEmpty');
+
+  list.replaceChildren();
+  empty.classList.toggle('hidden', icsSystems.length > 0);
+
+  icsSystems.forEach(item => {
+    const card = document.createElement('button');
+    const visual = createIcsVisual(item);
+    const name = document.createElement('span');
+
+    card.type = 'button';
+    card.className = 'ics-card';
+    card.setAttribute('aria-label', `Відкрити ${item.name}`);
+    name.className = 'ics-card-name';
+    name.textContent = item.name;
+    card.append(visual, name);
+    card.addEventListener('click', () => openIcsDetails(item));
+    list.appendChild(card);
+  });
+}
+
+function createIcsVisual(item) {
+  const visual = document.createElement('span');
+
+  visual.className = 'ics-card-visual';
+
+  if (item.logoUrl) {
+    const image = document.createElement('img');
+
+    image.src = item.logoUrl;
+    image.alt = '';
+    image.loading = 'lazy';
+    image.addEventListener('error', () => {
+      visual.replaceChildren(createIcsMonogram(item.name));
+    });
+    visual.appendChild(image);
+  } else {
+    visual.appendChild(createIcsMonogram(item.name));
+  }
+
+  return visual;
+}
+
+function createIcsMonogram(name) {
+  const monogram = document.createElement('span');
+
+  monogram.className = 'ics-monogram';
+  monogram.textContent = String(name || 'ІКС').trim().slice(0, 2).toUpperCase();
+  return monogram;
+}
+
+function openIcsDetails(item) {
+  const details = document.getElementById('icsDetails');
+
+  document.getElementById('icsModalTitle').textContent = item.name;
+  document.getElementById('icsForm').classList.add('hidden');
+  details.classList.remove('hidden');
+  details.replaceChildren();
+
+  appendIcsDetail(details, 'Про ІКС', item.about);
+  appendIcsLink(details, 'Посилання', item.url);
+  appendIcsDetail(details, 'Документація ІКС', item.documentation);
+  appendIcsDetail(details, 'Інформація про розгортання', item.deploymentInfo);
+  appendIcsDetail(details, 'Підрозділи', item.units && item.units.join(', '));
+  appendIcsDetail(details, 'Командування', item.command);
+  showIcsModal();
+}
+
+function appendIcsDetail(container, label, value) {
+  const row = document.createElement('div');
+  const title = document.createElement('dt');
+  const content = document.createElement('dd');
+
+  row.className = 'ics-detail-row';
+  title.textContent = label;
+  content.textContent = value || 'Не вказано';
+  row.append(title, content);
+  container.appendChild(row);
+}
+
+function appendIcsLink(container, label, url) {
+  if (!url) {
+    appendIcsDetail(container, label, 'Не вказано');
+    return;
+  }
+
+  const row = document.createElement('div');
+  const title = document.createElement('dt');
+  const content = document.createElement('dd');
+  const link = document.createElement('a');
+
+  row.className = 'ics-detail-row';
+  title.textContent = label;
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = 'Відкрити';
+  content.appendChild(link);
+  row.append(title, content);
+  container.appendChild(row);
+}
+
+function openIcsForm() {
+  const form = document.getElementById('icsForm');
+
+  document.getElementById('icsModalTitle').textContent = 'Додати ІКС';
+  document.getElementById('icsDetails').classList.add('hidden');
+  form.classList.remove('hidden');
+  form.reset();
+  renderIcsSelectOptions();
+  showIcsModal();
+  form.elements.name.focus();
+}
+
+function renderIcsSelectOptions() {
+  const units = document.getElementById('icsUnits');
+  const command = document.getElementById('icsCommand');
+
+  units.replaceChildren(...(icsOptions.units || []).map(createOption));
+  command.replaceChildren(createOption(''));
+  command.options[0].textContent = 'Не вказано';
+  (icsOptions.commands || []).forEach(value => {
+    command.appendChild(createOption(value));
+  });
+}
+
+function createOption(value) {
+  const option = document.createElement('option');
+
+  option.value = value;
+  option.textContent = value;
+  return option;
+}
+
+function showIcsModal() {
+  document.getElementById('icsModal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeIcsModal() {
+  document.getElementById('icsModal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+async function submitIcsForm(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const button = document.getElementById('saveIcsBtn');
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+
+  data.units = Array.from(form.elements.units.selectedOptions).map(option => option.value);
+  button.disabled = true;
+
+  try {
+    const result = await projectApi('createIcs', data);
+
+    if (!result.success) {
+      throw new Error(result.error || 'ICS_CREATE_FAILED');
+    }
+
+    icsSystems.push(result.data);
+    icsSystems.sort((left, right) => left.name.localeCompare(right.name));
+    renderIcsList();
+    closeIcsModal();
+    showToast('ІКС додано');
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося додати ІКС', error);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function renderActiveDiagram() {
@@ -498,6 +706,17 @@ document.getElementById('zoomResetBtn')
   .addEventListener('click', resetDiagramZoom);
 document.getElementById('zoomInBtn')
   .addEventListener('click', () => changeDiagramZoom(25));
+document.getElementById('addIcsBtn')
+  .addEventListener('click', openIcsForm);
+document.getElementById('icsForm')
+  .addEventListener('submit', submitIcsForm);
+document.querySelectorAll('[data-close-ics-modal]')
+  .forEach(element => element.addEventListener('click', closeIcsModal));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeIcsModal();
+  }
+});
 window.matchMedia(MOBILE_VIEWPORT_QUERY)
   .addEventListener('change', applyDiagramZoom);
 
