@@ -15,6 +15,7 @@ let icsOptions = { units: [], commands: [] };
 let activeDiagramId = ICS_REGISTRY_TAB_ID;
 let diagramZoom = 100;
 const diagramUrls = new Map();
+let icsModalCloseTimer = null;
 
 function getSharedAuthToken() {
   try {
@@ -406,7 +407,11 @@ function openIcsDetails(item) {
   appendIcsDetail(details, 'Документація ІКС', item.documentation);
   appendIcsDetail(details, 'Інформація про розгортання', item.deploymentInfo);
   appendIcsDetail(details, 'Підрозділи', item.units && item.units.join(', '));
-  appendIcsDetail(details, 'Командування', item.command);
+  appendIcsDetail(
+    details,
+    'Командування',
+    item.commands && item.commands.join(', ')
+  );
   showIcsModal();
 }
 
@@ -458,14 +463,12 @@ function openIcsForm() {
 
 function renderIcsSelectOptions() {
   const units = document.getElementById('icsUnits');
-  const command = document.getElementById('icsCommand');
+  const commands = document.getElementById('icsCommands');
 
   units.replaceChildren(...(icsOptions.units || []).map(createOption));
-  command.replaceChildren(createOption(''));
-  command.options[0].textContent = 'Не вказано';
-  (icsOptions.commands || []).forEach(value => {
-    command.appendChild(createOption(value));
-  });
+  commands.replaceChildren(
+    ...(icsOptions.commands || []).map(createOption)
+  );
 }
 
 function createOption(value) {
@@ -477,13 +480,27 @@ function createOption(value) {
 }
 
 function showIcsModal() {
-  document.getElementById('icsModal').classList.remove('hidden');
+  const modal = document.getElementById('icsModal');
+
+  clearTimeout(icsModalCloseTimer);
+  modal.classList.remove('hidden', 'closing');
   document.body.classList.add('modal-open');
 }
 
 function closeIcsModal() {
-  document.getElementById('icsModal').classList.add('hidden');
-  document.body.classList.remove('modal-open');
+  const modal = document.getElementById('icsModal');
+
+  if (modal.classList.contains('hidden') || modal.classList.contains('closing')) {
+    return;
+  }
+
+  modal.classList.add('closing');
+  clearTimeout(icsModalCloseTimer);
+  icsModalCloseTimer = setTimeout(() => {
+    modal.classList.add('hidden');
+    modal.classList.remove('closing');
+    document.body.classList.remove('modal-open');
+  }, 180);
 }
 
 async function submitIcsForm(event) {
@@ -495,6 +512,7 @@ async function submitIcsForm(event) {
   const data = Object.fromEntries(formData.entries());
 
   data.units = Array.from(form.elements.units.selectedOptions).map(option => option.value);
+  data.commands = Array.from(form.elements.commands.selectedOptions).map(option => option.value);
   button.disabled = true;
 
   try {
