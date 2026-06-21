@@ -529,7 +529,18 @@ async function submitIcsForm(event) {
     showToast('ІКС додано');
   } catch (error) {
     console.error(error);
-    showRequestError('Не вдалося додати ІКС', error);
+    const messages = {
+      ICS_NAME_REQUIRED: 'Назва ІКС повинна містити від 2 до 100 символів',
+      ICS_URL_INVALID: 'Посилання повинно починатися з https://',
+      ICS_TEXT_TOO_LONG: 'Одне з текстових полів перевищує допустиму довжину',
+      ICS_UNIT_INVALID: 'Обрано недоступний підрозділ',
+      ICS_COMMAND_INVALID: 'Обрано недоступне командування'
+    };
+
+    showRequestError(
+      messages[error.message] || 'Не вдалося додати ІКС',
+      error
+    );
   } finally {
     button.disabled = false;
   }
