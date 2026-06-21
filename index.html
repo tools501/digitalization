@@ -84,7 +84,20 @@
 
     <nav id="dashboardTabs" class="tabs" aria-label="Дашборди"></nav>
 
-    <section class="dashboard-shell">
+    <section id="icsRegistry" class="registry-shell hidden">
+      <header class="registry-header">
+        <h2>Облік ІКС</h2>
+        <button id="addIcsBtn" class="button button-primary" type="button">
+          Додати ІКС
+        </button>
+      </header>
+      <div id="icsList" class="ics-list"></div>
+      <div id="icsEmpty" class="registry-empty hidden">
+        Записи ІКС відсутні
+      </div>
+    </section>
+
+    <section id="dashboardShell" class="dashboard-shell">
       <header class="dashboard-header">
         <h2>
           <a
@@ -115,6 +128,66 @@
       <div id="dashboardEmpty" class="dashboard-empty hidden"></div>
     </section>
   </main>
+
+  <div id="icsModal" class="ics-modal hidden" role="dialog" aria-modal="true">
+    <div class="ics-modal-backdrop" data-close-ics-modal></div>
+    <section class="ics-modal-panel">
+      <header class="ics-modal-header">
+        <h2 id="icsModalTitle"></h2>
+        <button
+          class="ics-modal-close"
+          type="button"
+          title="Закрити"
+          aria-label="Закрити"
+          data-close-ics-modal
+        >×</button>
+      </header>
+      <div id="icsDetails" class="ics-details"></div>
+      <form id="icsForm" class="ics-form hidden">
+        <label>
+          <span>Назва ІКС</span>
+          <input name="name" type="text" minlength="2" maxlength="100" required>
+        </label>
+        <label>
+          <span>Про ІКС</span>
+          <textarea name="about" rows="4" maxlength="2000"></textarea>
+        </label>
+        <label>
+          <span>Посилання</span>
+          <input name="url" type="url" maxlength="500">
+        </label>
+        <label>
+          <span>Документація ІКС</span>
+          <textarea name="documentation" rows="3" maxlength="2000"></textarea>
+        </label>
+        <label>
+          <span>Інформація про розгортання</span>
+          <textarea name="deploymentInfo" rows="3" maxlength="2000"></textarea>
+        </label>
+        <label>
+          <span>Які підрозділи використовують</span>
+          <select id="icsUnits" name="units" multiple></select>
+          <small>Можна вибрати декілька значень</small>
+        </label>
+        <label>
+          <span>Командування</span>
+          <select id="icsCommand" name="command"></select>
+        </label>
+        <label>
+          <span>Посилання на логотип</span>
+          <input name="logoUrl" type="url" maxlength="500">
+        </label>
+        <div class="ics-form-actions">
+          <button id="saveIcsBtn" class="button button-primary" type="submit">
+            Зберегти
+          </button>
+          <button class="button button-secondary" type="button" data-close-ics-modal>
+            Скасувати
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <div id="toast" class="toast hidden" role="status"></div>
 
