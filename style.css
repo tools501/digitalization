@@ -547,7 +547,9 @@ button {
 
 .ics-form label:nth-child(2),
 .ics-form label:nth-child(4),
-.ics-form label:nth-child(5) {
+.ics-form label:nth-child(5),
+.ics-form label:nth-child(6),
+.ics-form label:nth-child(7) {
   grid-column: 1 / -1;
 }
 
@@ -711,7 +713,9 @@ button {
   .ics-form label,
   .ics-form label:nth-child(2),
   .ics-form label:nth-child(4),
-  .ics-form label:nth-child(5) {
+  .ics-form label:nth-child(5),
+  .ics-form label:nth-child(6),
+  .ics-form label:nth-child(7) {
     grid-column: 1;
   }
 
