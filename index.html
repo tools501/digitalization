@@ -142,16 +142,18 @@
           data-close-ics-modal
         >×</button>
       </header>
-      <div id="icsDetails" class="ics-details"></div>
-      <div id="icsDetailsActions" class="ics-details-actions hidden">
-        <button id="editIcsBtn" class="button button-primary" type="button">
-          Редагувати
-        </button>
-        <button id="deleteIcsBtn" class="button button-danger" type="button">
-          Видалити
-        </button>
-      </div>
-      <form id="icsForm" class="ics-form hidden">
+      <section id="icsDetailsView" class="ics-modal-view">
+        <div id="icsDetails" class="ics-details"></div>
+        <div id="icsDetailsActions" class="ics-details-actions">
+          <button id="editIcsBtn" class="button button-primary" type="button">
+            Редагувати
+          </button>
+          <button id="deleteIcsBtn" class="button button-danger" type="button">
+            Видалити
+          </button>
+        </div>
+      </section>
+      <form id="icsForm" class="ics-form ics-modal-view hidden">
         <label>
           <span>Назва ІКС</span>
           <input name="name" type="text" minlength="2" maxlength="100" required>
@@ -190,7 +192,7 @@
           </button>
         </div>
       </form>
-      <section id="icsDeleteConfirm" class="ics-delete-confirm hidden">
+      <section id="icsDeleteConfirm" class="ics-delete-confirm ics-modal-view hidden">
         <h3>Видалити ІКС?</h3>
         <p>Запис зникне зі списку. Цю дію потрібно підтвердити.</p>
         <div class="ics-form-actions">
