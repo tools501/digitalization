@@ -11,7 +11,7 @@ let authToken = '';
 let pendingTwoFactorAuth = null;
 let diagrams = [];
 let icsSystems = [];
-let icsOptions = { units: [], commands: [] };
+let icsOptions = { units: [] };
 let activeDiagramId = ICS_REGISTRY_TAB_ID;
 let diagramZoom = 100;
 const diagramUrls = new Map();
@@ -275,7 +275,7 @@ function applyBootstrap(data) {
   icsSystems = Array.isArray(data.icsSystems)
     ? data.icsSystems
     : [];
-  icsOptions = data.icsOptions || { units: [], commands: [] };
+  icsOptions = data.icsOptions || { units: [] };
 
   document.title = ui.appTitle || 'Dashboard';
   document.getElementById('appTitle').textContent =
@@ -463,12 +463,8 @@ function openIcsForm() {
 
 function renderIcsSelectOptions() {
   const units = document.getElementById('icsUnits');
-  const commands = document.getElementById('icsCommands');
 
   units.replaceChildren(...(icsOptions.units || []).map(createOption));
-  commands.replaceChildren(
-    ...(icsOptions.commands || []).map(createOption)
-  );
 }
 
 function createOption(value) {
@@ -512,7 +508,6 @@ async function submitIcsForm(event) {
   const data = Object.fromEntries(formData.entries());
 
   data.units = Array.from(form.elements.units.selectedOptions).map(option => option.value);
-  data.commands = Array.from(form.elements.commands.selectedOptions).map(option => option.value);
   button.disabled = true;
 
   try {
@@ -533,8 +528,7 @@ async function submitIcsForm(event) {
       ICS_NAME_REQUIRED: 'Назва ІКС повинна містити від 2 до 100 символів',
       ICS_URL_INVALID: 'Посилання повинно починатися з https://',
       ICS_TEXT_TOO_LONG: 'Одне з текстових полів перевищує допустиму довжину',
-      ICS_UNIT_INVALID: 'Обрано недоступний підрозділ',
-      ICS_COMMAND_INVALID: 'Обрано недоступне командування'
+      ICS_UNIT_INVALID: 'Обрано недоступний підрозділ'
     };
 
     showRequestError(
