@@ -143,6 +143,14 @@
         >×</button>
       </header>
       <div id="icsDetails" class="ics-details"></div>
+      <div id="icsDetailsActions" class="ics-details-actions hidden">
+        <button id="editIcsBtn" class="button button-primary" type="button">
+          Редагувати
+        </button>
+        <button id="deleteIcsBtn" class="button button-danger" type="button">
+          Видалити
+        </button>
+      </div>
       <form id="icsForm" class="ics-form hidden">
         <label>
           <span>Назва ІКС</span>
@@ -182,6 +190,24 @@
           </button>
         </div>
       </form>
+      <section id="icsDeleteConfirm" class="ics-delete-confirm hidden">
+        <h3>Видалити ІКС?</h3>
+        <p>Запис зникне зі списку. Цю дію потрібно підтвердити.</p>
+        <div class="ics-form-actions">
+          <button id="confirmDeleteIcsBtn" class="button button-danger" type="button">
+            Видалити
+          </button>
+          <button id="cancelDeleteIcsBtn" class="button button-secondary" type="button">
+            Скасувати
+          </button>
+        </div>
+      </section>
+      <div id="icsBusyOverlay" class="ics-busy-overlay hidden" aria-live="polite">
+        <div class="loader-grid" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <span id="icsBusyText">Зберігаємо</span>
+      </div>
     </section>
   </div>
 
