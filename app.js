@@ -16,6 +16,8 @@ let activeDiagramId = ICS_REGISTRY_TAB_ID;
 let diagramZoom = 100;
 const diagramUrls = new Map();
 let icsModalCloseTimer = null;
+let activeIcsItem = null;
+let editingIcsId = '';
 
 function getSharedAuthToken() {
   try {
@@ -397,8 +399,12 @@ function createIcsMonogram(name) {
 function openIcsDetails(item) {
   const details = document.getElementById('icsDetails');
 
+  activeIcsItem = item;
+  editingIcsId = '';
   document.getElementById('icsModalTitle').textContent = item.name;
   document.getElementById('icsForm').classList.add('hidden');
+  document.getElementById('icsDeleteConfirm').classList.add('hidden');
+  document.getElementById('icsDetailsActions').classList.remove('hidden');
   details.classList.remove('hidden');
   details.replaceChildren();
 
@@ -449,16 +455,59 @@ function appendIcsLink(container, label, url) {
   container.appendChild(row);
 }
 
-function openIcsForm() {
+function openIcsForm(item = null) {
   const form = document.getElementById('icsForm');
 
-  document.getElementById('icsModalTitle').textContent = 'Додати ІКС';
+  editingIcsId = item ? item.id : '';
+  activeIcsItem = item;
+  document.getElementById('icsModalTitle').textContent =
+    item ? 'Редагувати ІКС' : 'Додати ІКС';
   document.getElementById('icsDetails').classList.add('hidden');
+  document.getElementById('icsDetailsActions').classList.add('hidden');
+  document.getElementById('icsDeleteConfirm').classList.add('hidden');
   form.classList.remove('hidden');
   form.reset();
   renderIcsSelectOptions();
+
+  if (item) {
+    form.elements.name.value = item.name || '';
+    form.elements.about.value = item.about || '';
+    form.elements.url.value = item.url || '';
+    form.elements.documentation.value = item.documentation || '';
+    form.elements.deploymentInfo.value = item.deploymentInfo || '';
+    form.elements.logoUrl.value = item.logoUrl || '';
+    Array.from(form.elements.units.options).forEach(option => {
+      option.selected = (item.units || []).indexOf(option.value) !== -1;
+    });
+  }
+
   showIcsModal();
   form.elements.name.focus();
+}
+
+function showDeleteIcsConfirm() {
+  if (!activeIcsItem) {
+    return;
+  }
+
+  document.getElementById('icsDetails').classList.add('hidden');
+  document.getElementById('icsDetailsActions').classList.add('hidden');
+  document.getElementById('icsForm').classList.add('hidden');
+  document.getElementById('icsDeleteConfirm').classList.remove('hidden');
+  document.getElementById('icsModalTitle').textContent = activeIcsItem.name;
+}
+
+function cancelDeleteIcs() {
+  if (activeIcsItem) {
+    openIcsDetails(activeIcsItem);
+  }
+}
+
+function setIcsBusy(isBusy, message = 'Зберігаємо') {
+  const overlay = document.getElementById('icsBusyOverlay');
+
+  document.getElementById('icsBusyText').textContent = message;
+  overlay.classList.toggle('hidden', !isBusy);
 }
 
 function renderIcsSelectOptions() {
@@ -508,20 +557,30 @@ async function submitIcsForm(event) {
   const data = Object.fromEntries(formData.entries());
 
   data.units = Array.from(form.elements.units.selectedOptions).map(option => option.value);
+  data.id = editingIcsId;
   button.disabled = true;
+  setIcsBusy(true, editingIcsId ? 'Зберігаємо зміни' : 'Створюємо ІКС');
 
   try {
-    const result = await projectApi('createIcs', data);
+    const action = editingIcsId ? 'updateIcs' : 'createIcs';
+    const result = await projectApi(action, data);
 
     if (!result.success) {
-      throw new Error(result.error || 'ICS_CREATE_FAILED');
+      throw new Error(result.error || 'ICS_SAVE_FAILED');
     }
 
-    icsSystems.push(result.data);
+    const existingIndex = icsSystems.findIndex(item => item.id === result.data.id);
+
+    if (existingIndex === -1) {
+      icsSystems.push(result.data);
+    } else {
+      icsSystems[existingIndex] = result.data;
+    }
+
     icsSystems.sort((left, right) => left.name.localeCompare(right.name));
     renderIcsList();
     closeIcsModal();
-    showToast('ІКС додано');
+    showToast(editingIcsId ? 'Зміни збережено' : 'ІКС додано');
   } catch (error) {
     console.error(error);
     const messages = {
@@ -532,11 +591,41 @@ async function submitIcsForm(event) {
     };
 
     showRequestError(
-      messages[error.message] || 'Не вдалося додати ІКС',
+      messages[error.message] || 'Не вдалося зберегти ІКС',
       error
     );
   } finally {
     button.disabled = false;
+    setIcsBusy(false);
+  }
+}
+
+async function confirmDeleteIcs() {
+  if (!activeIcsItem) {
+    return;
+  }
+
+  const item = activeIcsItem;
+
+  setIcsBusy(true, 'Видаляємо ІКС');
+
+  try {
+    const result = await projectApi('deleteIcs', { id: item.id });
+
+    if (!result.success) {
+      throw new Error(result.error || 'ICS_DELETE_FAILED');
+    }
+
+    icsSystems = icsSystems.filter(existing => existing.id !== item.id);
+    activeIcsItem = null;
+    renderIcsList();
+    closeIcsModal();
+    showToast('ІКС видалено');
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося видалити ІКС', error);
+  } finally {
+    setIcsBusy(false);
   }
 }
 
@@ -730,7 +819,15 @@ document.getElementById('zoomResetBtn')
 document.getElementById('zoomInBtn')
   .addEventListener('click', () => changeDiagramZoom(25));
 document.getElementById('addIcsBtn')
-  .addEventListener('click', openIcsForm);
+  .addEventListener('click', () => openIcsForm());
+document.getElementById('editIcsBtn')
+  .addEventListener('click', () => openIcsForm(activeIcsItem));
+document.getElementById('deleteIcsBtn')
+  .addEventListener('click', showDeleteIcsConfirm);
+document.getElementById('confirmDeleteIcsBtn')
+  .addEventListener('click', confirmDeleteIcs);
+document.getElementById('cancelDeleteIcsBtn')
+  .addEventListener('click', cancelDeleteIcs);
 document.getElementById('icsForm')
   .addEventListener('submit', submitIcsForm);
 document.querySelectorAll('[data-close-ics-modal]')
