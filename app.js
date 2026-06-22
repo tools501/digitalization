@@ -16,6 +16,7 @@ let activeDiagramId = ICS_REGISTRY_TAB_ID;
 let diagramZoom = 100;
 const diagramUrls = new Map();
 let icsModalCloseTimer = null;
+let icsViewTransitionTimer = null;
 let activeIcsItem = null;
 let editingIcsId = '';
 
@@ -402,10 +403,6 @@ function openIcsDetails(item) {
   activeIcsItem = item;
   editingIcsId = '';
   document.getElementById('icsModalTitle').textContent = item.name;
-  document.getElementById('icsForm').classList.add('hidden');
-  document.getElementById('icsDeleteConfirm').classList.add('hidden');
-  document.getElementById('icsDetailsActions').classList.remove('hidden');
-  details.classList.remove('hidden');
   details.replaceChildren();
 
   appendIcsDetail(details, 'Про ІКС', item.about);
@@ -418,6 +415,7 @@ function openIcsDetails(item) {
     'Командування',
     item.commands && item.commands.join(', ')
   );
+  switchIcsModalView('icsDetailsView');
   showIcsModal();
 }
 
@@ -462,10 +460,6 @@ function openIcsForm(item = null) {
   activeIcsItem = item;
   document.getElementById('icsModalTitle').textContent =
     item ? 'Редагувати ІКС' : 'Додати ІКС';
-  document.getElementById('icsDetails').classList.add('hidden');
-  document.getElementById('icsDetailsActions').classList.add('hidden');
-  document.getElementById('icsDeleteConfirm').classList.add('hidden');
-  form.classList.remove('hidden');
   form.reset();
   renderIcsSelectOptions();
 
@@ -481,8 +475,9 @@ function openIcsForm(item = null) {
     });
   }
 
+  switchIcsModalView('icsForm');
   showIcsModal();
-  form.elements.name.focus();
+  setTimeout(() => form.elements.name.focus(), 190);
 }
 
 function showDeleteIcsConfirm() {
@@ -490,11 +485,8 @@ function showDeleteIcsConfirm() {
     return;
   }
 
-  document.getElementById('icsDetails').classList.add('hidden');
-  document.getElementById('icsDetailsActions').classList.add('hidden');
-  document.getElementById('icsForm').classList.add('hidden');
-  document.getElementById('icsDeleteConfirm').classList.remove('hidden');
   document.getElementById('icsModalTitle').textContent = activeIcsItem.name;
+  switchIcsModalView('icsDeleteConfirm');
 }
 
 function cancelDeleteIcs() {
@@ -508,6 +500,42 @@ function setIcsBusy(isBusy, message = 'Зберігаємо') {
 
   document.getElementById('icsBusyText').textContent = message;
   overlay.classList.toggle('hidden', !isBusy);
+}
+
+function switchIcsModalView(targetId) {
+  const modal = document.getElementById('icsModal');
+  const target = document.getElementById(targetId);
+  const views = Array.from(document.querySelectorAll('.ics-modal-view'));
+  const current = views.find(view =>
+    view !== target && !view.classList.contains('hidden')
+  );
+
+  clearTimeout(icsViewTransitionTimer);
+  views.forEach(view => {
+    view.classList.remove('view-entering', 'view-leaving');
+  });
+
+  if (modal.classList.contains('hidden') || !current) {
+    views.forEach(view => view.classList.toggle('hidden', view !== target));
+    target.classList.add('view-entering');
+    icsViewTransitionTimer = setTimeout(
+      () => target.classList.remove('view-entering'),
+      180
+    );
+    return;
+  }
+
+  current.classList.add('view-leaving');
+  icsViewTransitionTimer = setTimeout(() => {
+    current.classList.add('hidden');
+    current.classList.remove('view-leaving');
+    target.classList.remove('hidden');
+    target.classList.add('view-entering');
+    icsViewTransitionTimer = setTimeout(
+      () => target.classList.remove('view-entering'),
+      180
+    );
+  }, 120);
 }
 
 function renderIcsSelectOptions() {
