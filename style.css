@@ -125,6 +125,12 @@ button {
   color: var(--text);
 }
 
+.button-danger {
+  border: 1px solid #b34f4f;
+  background: #fff;
+  color: #963d3d;
+}
+
 .button:hover {
   opacity: .82;
 }
@@ -501,6 +507,13 @@ button {
   padding: 6px 18px 22px;
 }
 
+.ics-details-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 18px 18px;
+}
+
 .ics-detail-row {
   display: grid;
   grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
@@ -598,6 +611,43 @@ button {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 4px;
+}
+
+.ics-delete-confirm {
+  padding: 34px 18px 26px;
+  text-align: center;
+}
+
+.ics-delete-confirm h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.ics-delete-confirm p {
+  margin: 0 auto 22px;
+  max-width: 420px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.ics-delete-confirm .ics-form-actions {
+  justify-content: center;
+}
+
+.ics-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(243, 244, 246, .84);
+  color: #4c535a;
+  font-size: 13px;
+  font-weight: 650;
+  backdrop-filter: blur(2px);
 }
 
 @keyframes modal-fade {
@@ -702,6 +752,10 @@ button {
   .ics-detail-row {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .ics-details-actions {
+    padding: 0 14px 14px;
   }
 
   .ics-form {
