@@ -490,6 +490,15 @@ button {
   font-size: 18px;
 }
 
+.ics-modal-view.view-entering {
+  animation: view-enter .18s ease-out;
+}
+
+.ics-modal-view.view-leaving {
+  pointer-events: none;
+  animation: view-leave .12s ease-in forwards;
+}
+
 .ics-modal-close {
   width: 36px;
   height: 36px;
@@ -669,6 +678,20 @@ button {
   to {
     opacity: 0;
     transform: translateY(10px) scale(.985);
+  }
+}
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+@keyframes view-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-5px);
   }
 }
 
