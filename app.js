@@ -21,7 +21,8 @@ let activeIcsItem = null;
 let editingIcsId = '';
 let icsUsers = [];
 let loadedIcsUsersId = '';
-let loadingIcsUsersId = '';
+const icsUsersCache = new Map();
+const icsUsersLoadingPromises = new Map();
 let activeIcsUser = null;
 let editingIcsUserId = '';
 let bookPeople = null;
@@ -489,7 +490,10 @@ function openIcsDetails(item, activeTab = 'info') {
   editingIcsUserId = '';
   activeIcsUser = null;
 
-  if (loadedIcsUsersId !== item.id) {
+  if (icsUsersCache.has(item.id)) {
+    icsUsers = icsUsersCache.get(item.id);
+    loadedIcsUsersId = item.id;
+  } else {
     loadedIcsUsersId = '';
     icsUsers = [];
   }
@@ -534,44 +538,60 @@ async function loadIcsUsers(force = false) {
 
   const icsId = activeIcsItem.id;
 
-  if (!force && loadedIcsUsersId === icsId) {
-    return;
+  if (!force && icsUsersCache.has(icsId)) {
+    icsUsers = icsUsersCache.get(icsId);
+    loadedIcsUsersId = icsId;
+    renderIcsUsers();
+    return icsUsers;
   }
 
-  if (loadingIcsUsersId === icsId) {
-    return;
+  if (icsUsersLoadingPromises.has(icsId)) {
+    return icsUsersLoadingPromises.get(icsId);
   }
 
   const loader = document.getElementById('icsUsersLoader');
 
-  loadingIcsUsersId = icsId;
   loader.classList.remove('hidden');
   document.getElementById('icsUsersEmpty').classList.add('hidden');
   document.getElementById('icsUsersList').replaceChildren();
 
-  try {
-    const result = await projectApi('getIcsUsers', { icsId });
+  const loadingPromise = projectApi('getIcsUsers', { icsId })
+    .then(result => {
+      if (!result.success) {
+        throw new Error(result.error || 'ICS_USERS_LOAD_FAILED');
+      }
 
-    if (!result.success) {
-      throw new Error(result.error || 'ICS_USERS_LOAD_FAILED');
-    }
+      const users = Array.isArray(result.data) ? result.data : [];
 
-    if (!activeIcsItem || activeIcsItem.id !== icsId) {
-      return;
-    }
+      icsUsersCache.set(icsId, users);
 
-    icsUsers = Array.isArray(result.data) ? result.data : [];
-    loadedIcsUsersId = icsId;
-    renderIcsUsers();
-  } catch (error) {
-    console.error(error);
-    showRequestError('Не вдалося завантажити користувачів ІКС', error);
-  } finally {
-    if (loadingIcsUsersId === icsId) {
-      loadingIcsUsersId = '';
-      loader.classList.add('hidden');
-    }
-  }
+      if (activeIcsItem && activeIcsItem.id === icsId) {
+        icsUsers = users;
+        loadedIcsUsersId = icsId;
+        renderIcsUsers();
+      }
+
+      return users;
+    })
+    .catch(error => {
+      console.error(error);
+
+      if (activeIcsItem && activeIcsItem.id === icsId) {
+        showRequestError('Не вдалося завантажити користувачів ІКС', error);
+      }
+
+      return null;
+    })
+    .finally(() => {
+      icsUsersLoadingPromises.delete(icsId);
+
+      if (activeIcsItem && activeIcsItem.id === icsId) {
+        loader.classList.add('hidden');
+      }
+    });
+
+  icsUsersLoadingPromises.set(icsId, loadingPromise);
+  return loadingPromise;
 }
 
 function renderIcsUsers() {
@@ -915,6 +935,7 @@ async function submitIcsUserForm(event) {
 
     icsUsers.sort((left, right) => left.fullName.localeCompare(right.fullName));
     loadedIcsUsersId = activeIcsItem.id;
+    icsUsersCache.set(activeIcsItem.id, icsUsers);
     returnToIcsUsers();
     showToast(wasEditing ? 'Користувача оновлено' : 'Користувача додано');
   } catch (error) {
@@ -964,6 +985,7 @@ async function confirmDeleteIcsUser() {
     }
 
     icsUsers = icsUsers.filter(existing => existing.id !== user.id);
+    icsUsersCache.set(activeIcsItem.id, icsUsers);
     activeIcsUser = null;
     returnToIcsUsers();
     showToast('Користувача видалено');
@@ -1201,6 +1223,8 @@ async function confirmDeleteIcs() {
     }
 
     icsSystems = icsSystems.filter(existing => existing.id !== item.id);
+    icsUsersCache.delete(item.id);
+    icsUsersLoadingPromises.delete(item.id);
     activeIcsItem = null;
     renderIcsList();
     closeIcsModal();
