@@ -644,6 +644,64 @@ button {
   grid-column: 1 / -1;
 }
 
+.ics-user-form label:first-child {
+  position: relative;
+  z-index: 3;
+}
+
+.ics-people-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(560px, calc(100vw - 64px));
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(23, 25, 28, .14);
+}
+
+.ics-person-suggestion {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.ics-person-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.ics-person-suggestion:hover,
+.ics-person-suggestion:focus-visible {
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.ics-person-suggestion strong {
+  font-size: 13px;
+}
+
+.ics-person-suggestion span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.ics-people-suggestions-empty {
+  padding: 18px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: center;
+}
+
 .ics-form-actions {
   display: flex;
   grid-column: 1 / -1;
@@ -958,6 +1016,10 @@ button {
   .ics-form.ics-user-form label,
   .ics-form.ics-user-form label:nth-child(8) {
     grid-column: 1;
+  }
+
+  .ics-people-suggestions {
+    width: 100%;
   }
 
   .zoom-controls {
