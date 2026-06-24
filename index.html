@@ -242,7 +242,16 @@
         </label>
         <label>
           <span>Телефон</span>
-          <input name="phone" type="tel" maxlength="50">
+          <input
+            id="icsUserPhone"
+            name="phone"
+            type="tel"
+            inputmode="numeric"
+            autocomplete="tel"
+            maxlength="17"
+            pattern="\+380 [0-9]{2} [0-9]{3} [0-9]{2} [0-9]{2}"
+            placeholder="+380 67 123 45 67"
+          >
         </label>
         <label>
           <span>Пошта</span>
@@ -250,7 +259,7 @@
         </label>
         <label>
           <span>Права доступу в ІКС</span>
-          <textarea name="accessRights" rows="4" maxlength="1000"></textarea>
+          <input name="accessRights" type="text" maxlength="200">
         </label>
         <div class="ics-form-actions">
           <button id="saveIcsUserBtn" class="button button-primary" type="submit">
