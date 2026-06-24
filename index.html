@@ -220,7 +220,22 @@
       <form id="icsUserForm" class="ics-form ics-user-form ics-modal-view hidden">
         <label>
           <span>ПІБ</span>
-          <input name="fullName" type="text" minlength="2" maxlength="150" required>
+          <input
+            id="icsUserFullName"
+            name="fullName"
+            type="text"
+            minlength="2"
+            maxlength="150"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="icsPeopleSuggestions"
+            required
+          >
+          <div
+            id="icsPeopleSuggestions"
+            class="ics-people-suggestions hidden"
+            role="listbox"
+          ></div>
         </label>
         <label>
           <span>Звання</span>
