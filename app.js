@@ -19,6 +19,11 @@ let icsModalCloseTimer = null;
 let icsViewTransitionTimer = null;
 let activeIcsItem = null;
 let editingIcsId = '';
+let icsUsers = [];
+let loadedIcsUsersId = '';
+let loadingIcsUsersId = '';
+let activeIcsUser = null;
+let editingIcsUserId = '';
 
 function getSharedAuthToken() {
   try {
@@ -397,11 +402,19 @@ function createIcsMonogram(name) {
   return monogram;
 }
 
-function openIcsDetails(item) {
+function openIcsDetails(item, activeTab = 'info') {
   const details = document.getElementById('icsDetails');
 
   activeIcsItem = item;
   editingIcsId = '';
+  editingIcsUserId = '';
+  activeIcsUser = null;
+
+  if (loadedIcsUsersId !== item.id) {
+    loadedIcsUsersId = '';
+    icsUsers = [];
+  }
+
   document.getElementById('icsModalTitle').textContent = item.name;
   details.replaceChildren();
 
@@ -417,6 +430,294 @@ function openIcsDetails(item) {
   );
   switchIcsModalView('icsDetailsView');
   showIcsModal();
+  showIcsDetailsTab(activeTab);
+}
+
+function showIcsDetailsTab(tabName) {
+  const showUsers = tabName === 'users';
+
+  document.getElementById('icsInfoTabBtn').classList.toggle('active', !showUsers);
+  document.getElementById('icsUsersTabBtn').classList.toggle('active', showUsers);
+  document.getElementById('icsInfoPanel').classList.toggle('hidden', showUsers);
+  document.getElementById('icsUsersPanel').classList.toggle('hidden', !showUsers);
+
+  if (showUsers) {
+    renderIcsUsers();
+    loadIcsUsers();
+  }
+}
+
+async function loadIcsUsers(force = false) {
+  if (!activeIcsItem) {
+    return;
+  }
+
+  const icsId = activeIcsItem.id;
+
+  if (!force && loadedIcsUsersId === icsId) {
+    return;
+  }
+
+  if (loadingIcsUsersId === icsId) {
+    return;
+  }
+
+  const loader = document.getElementById('icsUsersLoader');
+
+  loadingIcsUsersId = icsId;
+  loader.classList.remove('hidden');
+  document.getElementById('icsUsersEmpty').classList.add('hidden');
+  document.getElementById('icsUsersList').replaceChildren();
+
+  try {
+    const result = await projectApi('getIcsUsers', { icsId });
+
+    if (!result.success) {
+      throw new Error(result.error || 'ICS_USERS_LOAD_FAILED');
+    }
+
+    if (!activeIcsItem || activeIcsItem.id !== icsId) {
+      return;
+    }
+
+    icsUsers = Array.isArray(result.data) ? result.data : [];
+    loadedIcsUsersId = icsId;
+    renderIcsUsers();
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося завантажити користувачів ІКС', error);
+  } finally {
+    if (loadingIcsUsersId === icsId) {
+      loadingIcsUsersId = '';
+      loader.classList.add('hidden');
+    }
+  }
+}
+
+function renderIcsUsers() {
+  const list = document.getElementById('icsUsersList');
+  const empty = document.getElementById('icsUsersEmpty');
+  const count = document.getElementById('icsUsersCount');
+
+  list.replaceChildren();
+  count.textContent = loadedIcsUsersId
+    ? `Користувачів: ${icsUsers.length}`
+    : '';
+  empty.classList.toggle(
+    'hidden',
+    !loadedIcsUsersId || icsUsers.length > 0
+  );
+
+  icsUsers.forEach(user => {
+    const card = document.createElement('article');
+    const header = document.createElement('div');
+    const identity = document.createElement('div');
+    const name = document.createElement('h3');
+    const subtitle = document.createElement('p');
+    const actions = document.createElement('div');
+    const editButton = document.createElement('button');
+    const deleteButton = document.createElement('button');
+    const details = document.createElement('dl');
+
+    card.className = 'ics-user-card';
+    header.className = 'ics-user-card-header';
+    actions.className = 'ics-user-actions';
+    details.className = 'ics-user-details';
+    name.textContent = user.fullName;
+    subtitle.textContent = [user.rank, user.callSign]
+      .filter(Boolean)
+      .join(' · ') || 'Звання та позивний не вказано';
+
+    editButton.type = 'button';
+    editButton.className = 'ics-user-action';
+    editButton.textContent = 'Редагувати';
+    editButton.addEventListener('click', () => openIcsUserForm(user));
+
+    deleteButton.type = 'button';
+    deleteButton.className = 'ics-user-action danger';
+    deleteButton.textContent = 'Видалити';
+    deleteButton.addEventListener('click', () => showDeleteIcsUserConfirm(user));
+
+    identity.append(name, subtitle);
+    actions.append(editButton, deleteButton);
+    header.append(identity, actions);
+    appendIcsUserDetail(details, 'Підрозділ', user.unit);
+    appendIcsUserDetail(details, 'Посада', user.position);
+    appendIcsUserDetail(details, 'Телефон', user.phone, 'tel');
+    appendIcsUserDetail(details, 'Пошта', user.email, 'mailto');
+    appendIcsUserDetail(details, 'Права доступу', user.accessRights, '', true);
+    card.append(header, details);
+    list.appendChild(card);
+  });
+}
+
+function appendIcsUserDetail(container, label, value, linkType = '', wide = false) {
+  const wrapper = document.createElement('div');
+  const title = document.createElement('dt');
+  const content = document.createElement('dd');
+
+  wrapper.className = wide ? 'wide' : '';
+  title.textContent = label;
+
+  if (value && linkType) {
+    const link = document.createElement('a');
+
+    link.href = `${linkType}:${value}`;
+    link.textContent = value;
+    content.appendChild(link);
+  } else {
+    content.textContent = value || 'Не вказано';
+  }
+
+  wrapper.append(title, content);
+  container.appendChild(wrapper);
+}
+
+function openIcsUserForm(user = null) {
+  if (!activeIcsItem) {
+    return;
+  }
+
+  const form = document.getElementById('icsUserForm');
+
+  activeIcsUser = user;
+  editingIcsUserId = user ? user.id : '';
+  document.getElementById('icsModalTitle').textContent =
+    user ? 'Редагувати користувача' : 'Додати користувача';
+  form.reset();
+  renderIcsUserUnitOptions(user && user.unit);
+
+  if (user) {
+    form.elements.fullName.value = user.fullName || '';
+    form.elements.rank.value = user.rank || '';
+    form.elements.callSign.value = user.callSign || '';
+    form.elements.unit.value = user.unit || '';
+    form.elements.position.value = user.position || '';
+    form.elements.phone.value = user.phone || '';
+    form.elements.email.value = user.email || '';
+    form.elements.accessRights.value = user.accessRights || '';
+  }
+
+  switchIcsModalView('icsUserForm');
+  setTimeout(() => form.elements.fullName.focus(), 190);
+}
+
+function renderIcsUserUnitOptions(currentValue = '') {
+  const select = document.getElementById('icsUserUnit');
+  const values = (icsOptions.units || []).slice();
+
+  if (currentValue && values.indexOf(currentValue) === -1) {
+    values.push(currentValue);
+  }
+
+  select.replaceChildren(
+    createOption(''),
+    ...values.map(createOption)
+  );
+  select.options[0].textContent = 'Не вказано';
+}
+
+function returnToIcsUsers() {
+  if (activeIcsItem) {
+    openIcsDetails(activeIcsItem, 'users');
+  }
+}
+
+async function submitIcsUserForm(event) {
+  event.preventDefault();
+
+  if (!activeIcsItem) {
+    return;
+  }
+
+  const form = event.currentTarget;
+  const button = document.getElementById('saveIcsUserBtn');
+  const data = Object.fromEntries(new FormData(form).entries());
+  const wasEditing = Boolean(editingIcsUserId);
+
+  data.id = editingIcsUserId;
+  data.icsId = activeIcsItem.id;
+  button.disabled = true;
+  setIcsBusy(
+    true,
+    editingIcsUserId ? 'Зберігаємо користувача' : 'Додаємо користувача'
+  );
+
+  try {
+    const action = wasEditing ? 'updateIcsUser' : 'createIcsUser';
+    const result = await projectApi(action, data);
+
+    if (!result.success) {
+      throw new Error(result.error || 'ICS_USER_SAVE_FAILED');
+    }
+
+    const existingIndex = icsUsers.findIndex(user => user.id === result.data.id);
+
+    if (existingIndex === -1) {
+      icsUsers.push(result.data);
+    } else {
+      icsUsers[existingIndex] = result.data;
+    }
+
+    icsUsers.sort((left, right) => left.fullName.localeCompare(right.fullName));
+    loadedIcsUsersId = activeIcsItem.id;
+    returnToIcsUsers();
+    showToast(wasEditing ? 'Користувача оновлено' : 'Користувача додано');
+  } catch (error) {
+    console.error(error);
+    const messages = {
+      ICS_USER_NAME_REQUIRED: 'ПІБ має містити від 2 до 150 символів',
+      ICS_USER_EMAIL_INVALID: 'Вкажіть коректну адресу пошти',
+      ICS_TEXT_TOO_LONG: 'Одне з полів перевищує допустиму довжину'
+    };
+
+    showRequestError(
+      messages[error.message] || 'Не вдалося зберегти користувача',
+      error
+    );
+  } finally {
+    button.disabled = false;
+    setIcsBusy(false);
+  }
+}
+
+function showDeleteIcsUserConfirm(user) {
+  activeIcsUser = user;
+  document.getElementById('icsModalTitle').textContent = 'Видалити користувача';
+  document.getElementById('icsUserDeleteText').textContent =
+    `${user.fullName} зникне зі списку цієї ІКС.`;
+  switchIcsModalView('icsUserDeleteConfirm');
+}
+
+async function confirmDeleteIcsUser() {
+  if (!activeIcsItem || !activeIcsUser) {
+    return;
+  }
+
+  const user = activeIcsUser;
+
+  setIcsBusy(true, 'Видаляємо користувача');
+
+  try {
+    const result = await projectApi('deleteIcsUser', {
+      id: user.id,
+      icsId: activeIcsItem.id
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'ICS_USER_DELETE_FAILED');
+    }
+
+    icsUsers = icsUsers.filter(existing => existing.id !== user.id);
+    activeIcsUser = null;
+    returnToIcsUsers();
+    showToast('Користувача видалено');
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося видалити користувача', error);
+  } finally {
+    setIcsBusy(false);
+  }
 }
 
 function appendIcsDetail(container, label, value) {
@@ -848,6 +1149,12 @@ document.getElementById('zoomInBtn')
   .addEventListener('click', () => changeDiagramZoom(25));
 document.getElementById('addIcsBtn')
   .addEventListener('click', () => openIcsForm());
+document.getElementById('icsInfoTabBtn')
+  .addEventListener('click', () => showIcsDetailsTab('info'));
+document.getElementById('icsUsersTabBtn')
+  .addEventListener('click', () => showIcsDetailsTab('users'));
+document.getElementById('addIcsUserBtn')
+  .addEventListener('click', () => openIcsUserForm());
 document.getElementById('editIcsBtn')
   .addEventListener('click', () => openIcsForm(activeIcsItem));
 document.getElementById('deleteIcsBtn')
@@ -858,6 +1165,14 @@ document.getElementById('cancelDeleteIcsBtn')
   .addEventListener('click', cancelDeleteIcs);
 document.getElementById('icsForm')
   .addEventListener('submit', submitIcsForm);
+document.getElementById('icsUserForm')
+  .addEventListener('submit', submitIcsUserForm);
+document.getElementById('cancelIcsUserBtn')
+  .addEventListener('click', returnToIcsUsers);
+document.getElementById('confirmDeleteIcsUserBtn')
+  .addEventListener('click', confirmDeleteIcsUser);
+document.getElementById('cancelDeleteIcsUserBtn')
+  .addEventListener('click', returnToIcsUsers);
 document.querySelectorAll('[data-close-ics-modal]')
   .forEach(element => element.addEventListener('click', closeIcsModal));
 document.addEventListener('keydown', event => {
