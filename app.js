@@ -24,6 +24,8 @@ let loadedIcsUsersId = '';
 let loadingIcsUsersId = '';
 let activeIcsUser = null;
 let editingIcsUserId = '';
+let bookPeople = null;
+let bookPeopleLoadingPromise = null;
 
 function getSharedAuthToken() {
   try {
@@ -573,18 +575,42 @@ function appendIcsUserDetail(container, label, value, linkType = '', wide = fals
   container.appendChild(wrapper);
 }
 
-function openIcsUserForm(user = null) {
+async function openIcsUserForm(user = null) {
   if (!activeIcsItem) {
     return;
   }
 
   const form = document.getElementById('icsUserForm');
+  const requestedIcsId = activeIcsItem.id;
+
+  if (!user && !bookPeople) {
+    setIcsBusy(true, 'Завантажуємо довідник Book');
+
+    try {
+      await loadBookPeople();
+    } catch (error) {
+      console.error(error);
+      showRequestError('Не вдалося завантажити довідник Book', error);
+      return;
+    } finally {
+      setIcsBusy(false);
+    }
+
+    if (
+      !activeIcsItem ||
+      activeIcsItem.id !== requestedIcsId ||
+      document.getElementById('icsModal').classList.contains('hidden')
+    ) {
+      return;
+    }
+  }
 
   activeIcsUser = user;
   editingIcsUserId = user ? user.id : '';
   document.getElementById('icsModalTitle').textContent =
     user ? 'Редагувати користувача' : 'Додати користувача';
   form.reset();
+  hideBookPeopleSuggestions();
   renderIcsUserUnitOptions(user && user.unit);
 
   if (user) {
@@ -600,6 +626,111 @@ function openIcsUserForm(user = null) {
 
   switchIcsModalView('icsUserForm');
   setTimeout(() => form.elements.fullName.focus(), 190);
+}
+
+function loadBookPeople() {
+  if (bookPeople) {
+    return Promise.resolve(bookPeople);
+  }
+
+  if (bookPeopleLoadingPromise) {
+    return bookPeopleLoadingPromise;
+  }
+
+  bookPeopleLoadingPromise = projectApi('getBookPeople')
+    .then(result => {
+      if (!result.success) {
+        throw new Error(result.error || 'BOOK_PEOPLE_LOAD_FAILED');
+      }
+
+      bookPeople = Array.isArray(result.data) ? result.data : [];
+      return bookPeople;
+    })
+    .finally(() => {
+      bookPeopleLoadingPromise = null;
+    });
+
+  return bookPeopleLoadingPromise;
+}
+
+function normalizeBookPeopleSearch(value) {
+  return String(value || '')
+    .trim()
+    .toLocaleLowerCase('uk');
+}
+
+function renderBookPeopleSuggestions() {
+  const input = document.getElementById('icsUserFullName');
+  const suggestions = document.getElementById('icsPeopleSuggestions');
+  const query = normalizeBookPeopleSearch(input.value);
+
+  suggestions.replaceChildren();
+
+  if (!bookPeople || query.length < 2) {
+    suggestions.classList.add('hidden');
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+
+  const matches = bookPeople
+    .filter(person =>
+      normalizeBookPeopleSearch(person.fullName).includes(query) ||
+      normalizeBookPeopleSearch(person.callSign).includes(query)
+    )
+    .slice(0, 20);
+
+  if (!matches.length) {
+    const empty = document.createElement('div');
+
+    empty.className = 'ics-people-suggestions-empty';
+    empty.textContent = 'Нічого не знайдено';
+    suggestions.appendChild(empty);
+  } else {
+    matches.forEach(person => {
+      const button = document.createElement('button');
+      const name = document.createElement('strong');
+      const meta = document.createElement('span');
+
+      button.type = 'button';
+      button.className = 'ics-person-suggestion';
+      button.setAttribute('role', 'option');
+      name.textContent = person.fullName;
+      meta.textContent = [person.rank, person.callSign, person.position]
+        .filter(Boolean)
+        .join(' · ');
+      button.appendChild(name);
+
+      if (meta.textContent) {
+        button.appendChild(meta);
+      }
+
+      button.addEventListener('mousedown', event => event.preventDefault());
+      button.addEventListener('click', () => selectBookPerson(person));
+      suggestions.appendChild(button);
+    });
+  }
+
+  suggestions.classList.remove('hidden');
+  input.setAttribute('aria-expanded', 'true');
+}
+
+function selectBookPerson(person) {
+  const form = document.getElementById('icsUserForm');
+
+  form.elements.fullName.value = person.fullName;
+
+  ['rank', 'callSign', 'position'].forEach(field => {
+    if (Object.prototype.hasOwnProperty.call(person, field)) {
+      form.elements[field].value = person[field];
+    }
+  });
+
+  hideBookPeopleSuggestions();
+}
+
+function hideBookPeopleSuggestions() {
+  document.getElementById('icsPeopleSuggestions').classList.add('hidden');
+  document.getElementById('icsUserFullName').setAttribute('aria-expanded', 'false');
 }
 
 function renderIcsUserUnitOptions(currentValue = '') {
@@ -1201,6 +1332,12 @@ document.getElementById('icsUserForm')
   .addEventListener('submit', submitIcsUserForm);
 document.getElementById('icsUserPhone')
   .addEventListener('input', handleIcsUserPhoneInput);
+document.getElementById('icsUserFullName')
+  .addEventListener('input', renderBookPeopleSuggestions);
+document.getElementById('icsUserFullName')
+  .addEventListener('focus', renderBookPeopleSuggestions);
+document.getElementById('icsUserFullName')
+  .addEventListener('blur', hideBookPeopleSuggestions);
 document.getElementById('cancelIcsUserBtn')
   .addEventListener('click', returnToIcsUsers);
 document.getElementById('confirmDeleteIcsUserBtn')
