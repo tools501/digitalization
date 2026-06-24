@@ -143,15 +143,40 @@
         >×</button>
       </header>
       <section id="icsDetailsView" class="ics-modal-view">
-        <div id="icsDetails" class="ics-details"></div>
-        <div id="icsDetailsActions" class="ics-details-actions">
-          <button id="editIcsBtn" class="button button-primary" type="button">
-            Редагувати
+        <nav class="ics-card-tabs" aria-label="Розділи ІКС">
+          <button id="icsInfoTabBtn" class="ics-card-tab active" type="button">
+            Інформація
           </button>
-          <button id="deleteIcsBtn" class="button button-danger" type="button">
-            Видалити
+          <button id="icsUsersTabBtn" class="ics-card-tab" type="button">
+            Користувачі
           </button>
-        </div>
+        </nav>
+        <section id="icsInfoPanel">
+          <div id="icsDetails" class="ics-details"></div>
+          <div id="icsDetailsActions" class="ics-details-actions">
+            <button id="editIcsBtn" class="button button-primary" type="button">
+              Редагувати
+            </button>
+            <button id="deleteIcsBtn" class="button button-danger" type="button">
+              Видалити
+            </button>
+          </div>
+        </section>
+        <section id="icsUsersPanel" class="ics-users-panel hidden">
+          <div class="ics-users-toolbar">
+            <p id="icsUsersCount"></p>
+            <button id="addIcsUserBtn" class="button button-primary" type="button">
+              Додати користувача
+            </button>
+          </div>
+          <div id="icsUsersLoader" class="ics-users-message hidden">
+            Завантажуємо користувачів…
+          </div>
+          <div id="icsUsersEmpty" class="ics-users-message hidden">
+            Користувачів ще не додано
+          </div>
+          <div id="icsUsersList" class="ics-users-list"></div>
+        </section>
       </section>
       <form id="icsForm" class="ics-form ics-modal-view hidden">
         <label>
@@ -192,6 +217,50 @@
           </button>
         </div>
       </form>
+      <form id="icsUserForm" class="ics-form ics-user-form ics-modal-view hidden">
+        <label>
+          <span>ПІБ</span>
+          <input name="fullName" type="text" minlength="2" maxlength="150" required>
+        </label>
+        <label>
+          <span>Звання</span>
+          <input name="rank" type="text" maxlength="100">
+        </label>
+        <label>
+          <span>Позивний</span>
+          <input name="callSign" type="text" maxlength="100">
+        </label>
+        <label>
+          <span>Підрозділ</span>
+          <select id="icsUserUnit" name="unit">
+            <option value="">Не вказано</option>
+          </select>
+        </label>
+        <label>
+          <span>Посада</span>
+          <input name="position" type="text" maxlength="150">
+        </label>
+        <label>
+          <span>Телефон</span>
+          <input name="phone" type="tel" maxlength="50">
+        </label>
+        <label>
+          <span>Пошта</span>
+          <input name="email" type="email" maxlength="254">
+        </label>
+        <label>
+          <span>Права доступу в ІКС</span>
+          <textarea name="accessRights" rows="4" maxlength="1000"></textarea>
+        </label>
+        <div class="ics-form-actions">
+          <button id="saveIcsUserBtn" class="button button-primary" type="submit">
+            Зберегти
+          </button>
+          <button id="cancelIcsUserBtn" class="button button-secondary" type="button">
+            Скасувати
+          </button>
+        </div>
+      </form>
       <section id="icsDeleteConfirm" class="ics-delete-confirm ics-modal-view hidden">
         <h3>Видалити ІКС?</h3>
         <p>Запис зникне зі списку. Цю дію потрібно підтвердити.</p>
@@ -200,6 +269,18 @@
             Видалити
           </button>
           <button id="cancelDeleteIcsBtn" class="button button-secondary" type="button">
+            Скасувати
+          </button>
+        </div>
+      </section>
+      <section id="icsUserDeleteConfirm" class="ics-delete-confirm ics-modal-view hidden">
+        <h3>Видалити користувача?</h3>
+        <p id="icsUserDeleteText">Користувач зникне зі списку цієї ІКС.</p>
+        <div class="ics-form-actions">
+          <button id="confirmDeleteIcsUserBtn" class="button button-danger" type="button">
+            Видалити
+          </button>
+          <button id="cancelDeleteIcsUserBtn" class="button button-secondary" type="button">
             Скасувати
           </button>
         </div>
@@ -218,5 +299,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
-<!-- test -->
