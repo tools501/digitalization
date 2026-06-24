@@ -523,6 +523,7 @@ function showIcsDetailsTab(tabName) {
   if (showUsers) {
     renderIcsUsers();
     loadIcsUsers();
+    preloadBookPeople();
   }
 }
 
@@ -728,6 +729,20 @@ function loadBookPeople() {
     });
 
   return bookPeopleLoadingPromise;
+}
+
+function preloadBookPeople() {
+  if (bookPeople) {
+    return;
+  }
+
+  loadBookPeople().catch(error => {
+    console.warn('[Book people preload failed]', {
+      errorName: error.name,
+      errorMessage: error.message,
+      timestamp: new Date().toISOString()
+    });
+  });
 }
 
 function normalizeBookPeopleSearch(value) {
