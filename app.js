@@ -26,6 +26,7 @@ let activeIcsUser = null;
 let editingIcsUserId = '';
 let bookPeople = null;
 let bookPeopleLoadingPromise = null;
+let apiRequestSequence = 0;
 
 function getSharedAuthToken() {
   try {
@@ -65,23 +66,91 @@ function showOnly(id) {
   });
 }
 
-async function requestJson(url, options) {
+async function requestJson(url, options, context = {}) {
   const controller = new AbortController();
+  const requestId = `${Date.now()}-${++apiRequestSequence}`;
+  const startedAt = performance.now();
+  let response = null;
   const timer = setTimeout(
     () => controller.abort(),
     REQUEST_TIMEOUT_MS
   );
 
   try {
-    const response = await fetch(url, {
+    response = await fetch(url, {
       ...options,
       signal: controller.signal
     });
 
-    return response.json();
+    const result = await response.json();
+
+    logApiRequest('success', {
+      requestId,
+      context,
+      response,
+      startedAt,
+      result
+    });
+
+    return result;
+  } catch (error) {
+    logApiRequest('error', {
+      requestId,
+      context,
+      response,
+      startedAt,
+      error
+    });
+
+    throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+function logApiRequest(level, details) {
+  const error = details.error;
+  const response = details.response;
+  const durationMs = Math.round(performance.now() - details.startedAt);
+  const errorType = !error
+    ? null
+    : error.name === 'AbortError'
+      ? 'TIMEOUT'
+      : error instanceof SyntaxError
+        ? 'INVALID_JSON'
+        : error instanceof TypeError
+          ? 'NETWORK_OR_CORS'
+          : 'UNEXPECTED';
+  const entry = {
+    requestId: details.requestId,
+    service: details.context.service || 'unknown',
+    action: details.context.action || 'unknown',
+    method: details.context.method || 'POST',
+    durationMs,
+    status: response ? response.status : null,
+    statusText: response ? response.statusText : null,
+    redirected: response ? response.redirected : null,
+    responseType: response ? response.type : null,
+    responseUrl: response ? response.url : null,
+    contentType: response ? response.headers.get('content-type') : null,
+    apiSuccess: details.result && typeof details.result.success === 'boolean'
+      ? details.result.success
+      : null,
+    apiError: details.result && details.result.error
+      ? String(details.result.error)
+      : null,
+    errorType,
+    errorName: error ? error.name : null,
+    errorMessage: error ? error.message : null,
+    timestamp: new Date().toISOString()
+  };
+
+  if (level === 'error') {
+    console.error('[Digitalization API request failed]', entry);
+    return;
+  }
+
+  console.info('[Digitalization API request completed]', entry);
 }
 
 async function projectApi(action, data = {}, token = authToken) {
@@ -103,6 +172,10 @@ async function projectApi(action, data = {}, token = authToken) {
   return requestJson(API_URL, {
     method: 'POST',
     body
+  }, {
+    service: 'digitalization',
+    action,
+    method: 'POST'
   });
 }
 
@@ -121,6 +194,10 @@ async function hubApi(action, data = {}, token = authToken) {
   return requestJson(HUB_API_URL, {
     method: 'POST',
     body
+  }, {
+    service: 'hub',
+    action,
+    method: 'POST'
   });
 }
 
