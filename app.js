@@ -593,7 +593,7 @@ function openIcsUserForm(user = null) {
     form.elements.callSign.value = user.callSign || '';
     form.elements.unit.value = user.unit || '';
     form.elements.position.value = user.position || '';
-    form.elements.phone.value = user.phone || '';
+    form.elements.phone.value = formatUkrainianPhone(user.phone || '');
     form.elements.email.value = user.email || '';
     form.elements.accessRights.value = user.accessRights || '';
   }
@@ -615,6 +615,37 @@ function renderIcsUserUnitOptions(currentValue = '') {
     ...values.map(createOption)
   );
   select.options[0].textContent = 'Не вказано';
+}
+
+function formatUkrainianPhone(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+
+  if (digits.indexOf('380') === 0) {
+    digits = digits.slice(3);
+  } else if (digits.indexOf('38') === 0) {
+    digits = digits.slice(2);
+  } else if (digits[0] === '0') {
+    digits = digits.slice(1);
+  }
+
+  digits = digits.slice(0, 9);
+
+  if (!digits) {
+    return '';
+  }
+
+  const parts = [
+    digits.slice(0, 2),
+    digits.slice(2, 5),
+    digits.slice(5, 7),
+    digits.slice(7, 9)
+  ].filter(Boolean);
+
+  return `+380 ${parts.join(' ')}`;
+}
+
+function handleIcsUserPhoneInput(event) {
+  event.currentTarget.value = formatUkrainianPhone(event.currentTarget.value);
 }
 
 function returnToIcsUsers() {
@@ -668,6 +699,7 @@ async function submitIcsUserForm(event) {
     const messages = {
       ICS_USER_NAME_REQUIRED: 'ПІБ має містити від 2 до 150 символів',
       ICS_USER_EMAIL_INVALID: 'Вкажіть коректну адресу пошти',
+      ICS_USER_PHONE_INVALID: 'Вкажіть телефон у форматі +380 67 123 45 67',
       ICS_TEXT_TOO_LONG: 'Одне з полів перевищує допустиму довжину'
     };
 
@@ -1167,6 +1199,8 @@ document.getElementById('icsForm')
   .addEventListener('submit', submitIcsForm);
 document.getElementById('icsUserForm')
   .addEventListener('submit', submitIcsUserForm);
+document.getElementById('icsUserPhone')
+  .addEventListener('input', handleIcsUserPhoneInput);
 document.getElementById('cancelIcsUserBtn')
   .addEventListener('click', returnToIcsUsers);
 document.getElementById('confirmDeleteIcsUserBtn')
