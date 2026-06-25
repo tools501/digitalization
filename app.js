@@ -720,6 +720,8 @@ async function openIcsUserForm(user = null) {
     form.elements.phone.value = formatUkrainianPhone(user.phone || '');
     form.elements.email.value = user.email || '';
     form.elements.accessRights.value = user.accessRights || '';
+    form.elements.sourceKey.value = user.sourceKey || '';
+    form.elements.identityType.value = user.identityType || '';
   }
 
   switchIcsModalView('icsUserForm');
@@ -830,6 +832,8 @@ function selectBookPerson(person) {
   const form = document.getElementById('icsUserForm');
 
   form.elements.fullName.value = person.fullName;
+  form.elements.sourceKey.value = person.sourceKey || '';
+  form.elements.identityType.value = person.identityType || '';
 
   ['rank', 'callSign', 'position'].forEach(field => {
     if (Object.prototype.hasOwnProperty.call(person, field)) {
@@ -838,6 +842,14 @@ function selectBookPerson(person) {
   });
 
   hideBookPeopleSuggestions();
+}
+
+function handleIcsUserNameInput() {
+  const form = document.getElementById('icsUserForm');
+
+  form.elements.sourceKey.value = '';
+  form.elements.identityType.value = '';
+  renderBookPeopleSuggestions();
 }
 
 function hideBookPeopleSuggestions() {
@@ -933,17 +945,25 @@ async function submitIcsUserForm(event) {
       icsUsers[existingIndex] = result.data;
     }
 
+    updatePersonInCachedIcsUsers(result.data);
     icsUsers.sort((left, right) => left.fullName.localeCompare(right.fullName));
     loadedIcsUsersId = activeIcsItem.id;
     icsUsersCache.set(activeIcsItem.id, icsUsers);
     returnToIcsUsers();
-    showToast(wasEditing ? 'Користувача оновлено' : 'Користувача додано');
+    showToast(
+      wasEditing
+        ? 'Користувача оновлено'
+        : result.data.alreadyExists
+          ? 'Користувач уже є в цій ІКС; дані оновлено'
+          : 'Користувача додано'
+    );
   } catch (error) {
     console.error(error);
     const messages = {
       ICS_USER_NAME_REQUIRED: 'ПІБ має містити від 2 до 150 символів',
       ICS_USER_EMAIL_INVALID: 'Вкажіть коректну адресу пошти',
       ICS_USER_PHONE_INVALID: 'Вкажіть телефон у форматі +380 67 123 45 67',
+      PERSON_IDENTITY_AMBIGUOUS: 'Знайдено декілька людей з однаковим ПІБ',
       ICS_TEXT_TOO_LONG: 'Одне з полів перевищує допустиму довжину'
     };
 
@@ -955,6 +975,32 @@ async function submitIcsUserForm(event) {
     button.disabled = false;
     setIcsBusy(false);
   }
+}
+
+function updatePersonInCachedIcsUsers(updatedUser) {
+  const personFields = [
+    'sourceKey',
+    'identityType',
+    'fullName',
+    'rank',
+    'callSign',
+    'unit',
+    'position',
+    'phone',
+    'email'
+  ];
+
+  icsUsersCache.forEach(users => {
+    users.forEach(user => {
+      if (user.personId !== updatedUser.personId) {
+        return;
+      }
+
+      personFields.forEach(field => {
+        user[field] = updatedUser[field] || '';
+      });
+    });
+  });
 }
 
 function showDeleteIcsUserConfirm(user) {
@@ -1449,7 +1495,7 @@ document.getElementById('icsUserForm')
 document.getElementById('icsUserPhone')
   .addEventListener('input', handleIcsUserPhoneInput);
 document.getElementById('icsUserFullName')
-  .addEventListener('input', renderBookPeopleSuggestions);
+  .addEventListener('input', handleIcsUserNameInput);
 document.getElementById('icsUserFullName')
   .addEventListener('focus', renderBookPeopleSuggestions);
 document.getElementById('icsUserFullName')
@@ -1471,4 +1517,3 @@ window.matchMedia(MOBILE_VIEWPORT_QUERY)
   .addEventListener('change', applyDiagramZoom);
 
 trySharedSession();
-// test
