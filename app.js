@@ -59,6 +59,7 @@ function showOnly(id) {
     'loader',
     'twoFactorPage',
     'deniedPage',
+    'networkErrorPage',
     'app'
   ].forEach(elementId => {
     document
@@ -152,6 +153,14 @@ function logApiRequest(level, details) {
   }
 
   console.info('[Digitalization API request completed]', entry);
+}
+
+function isTransientRequestError(error) {
+  return Boolean(error) &&
+    (
+      error.name === 'AbortError' ||
+      error instanceof TypeError
+    );
 }
 
 async function projectApi(action, data = {}, token = authToken) {
@@ -343,6 +352,12 @@ async function authenticateWithToken(token, options = {}) {
     authToken = '';
 
     if (options.fromSharedSession) {
+      if (isTransientRequestError(error)) {
+        showOnly('networkErrorPage');
+        showRequestError('Не вдалося завантажити дані', error);
+        return;
+      }
+
       clearSharedAuthToken();
       showOnly('loginPage');
       return;
@@ -1466,6 +1481,10 @@ document.getElementById('hubBtn')
   .addEventListener('click', goToHub);
 document.getElementById('deniedHubBtn')
   .addEventListener('click', goToHub);
+document.getElementById('networkHubBtn')
+  .addEventListener('click', goToHub);
+document.getElementById('networkRetryBtn')
+  .addEventListener('click', trySharedSession);
 document.getElementById('zoomOutBtn')
   .addEventListener('click', () => changeDiagramZoom(-25));
 document.getElementById('zoomResetBtn')
