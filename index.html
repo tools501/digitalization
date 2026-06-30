@@ -186,7 +186,7 @@
               Додати користувача
             </button>
           </div>
-          <div id="icsUsersLoader" class="ics-users-message hidden">
+          <div id="icsUsersLoader" class="ics-users-message ics-users-loading hidden">
             <div class="loader-grid small" aria-hidden="true">
               <span></span><span></span><span></span><span></span>
             </div>
@@ -266,6 +266,15 @@
           <input name="callSign" type="text" maxlength="100">
         </label>
         <label>
+          <span>Статус</span>
+          <select name="serviceStatus">
+            <option value="">Не вказано</option>
+            <option value="В строю">В строю</option>
+            <option value="В розпорядженні">В розпорядженні</option>
+            <option value="Звільнений">Звільнений</option>
+          </select>
+        </label>
+        <label>
           <span>Підрозділ</span>
           <select id="icsUserUnit" name="unit">
             <option value="">Не вказано</option>
@@ -298,7 +307,6 @@
         </label>
         <input name="sourceKey" type="hidden">
         <input name="identityType" type="hidden">
-        <input name="serviceStatus" type="hidden">
         <div class="ics-form-actions">
           <button id="saveIcsUserBtn" class="button button-primary" type="submit">
             Зберегти
