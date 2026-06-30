@@ -177,7 +177,7 @@ button {
   display: inline-grid;
   grid-template-columns: repeat(2, 8px);
   gap: 3px;
-  margin: 0 auto 10px;
+  margin: 0;
 }
 
 .loader-grid.small span {
@@ -660,7 +660,7 @@ button {
   grid-column: auto;
 }
 
-.ics-form.ics-user-form label:nth-child(8) {
+.ics-form.ics-user-form label:nth-child(9) {
   grid-column: 1 / -1;
 }
 
@@ -773,6 +773,14 @@ button {
   padding: 42px 16px;
   color: var(--muted);
   text-align: center;
+}
+
+.ics-users-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .ics-users-list {
@@ -1040,7 +1048,7 @@ button {
   }
 
   .ics-form.ics-user-form label,
-  .ics-form.ics-user-form label:nth-child(8) {
+  .ics-form.ics-user-form label:nth-child(9) {
     grid-column: 1;
   }
 
