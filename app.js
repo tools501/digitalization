@@ -579,6 +579,7 @@ async function loadIcsUsers(force = false) {
       const users = Array.isArray(result.data) ? result.data : [];
 
       icsUsersCache.set(icsId, users);
+      syncIcsUsersWithBookPeople();
 
       if (activeIcsItem && activeIcsItem.id === icsId) {
         icsUsers = users;
@@ -628,7 +629,7 @@ function renderIcsUsers() {
     const header = document.createElement('div');
     const identity = document.createElement('div');
     const name = document.createElement('h3');
-    const subtitle = document.createElement('p');
+    const meta = document.createElement('div');
     const actions = document.createElement('div');
     const editButton = document.createElement('button');
     const deleteButton = document.createElement('button');
@@ -636,12 +637,21 @@ function renderIcsUsers() {
 
     card.className = 'ics-user-card';
     header.className = 'ics-user-card-header';
+    meta.className = 'ics-user-meta';
     actions.className = 'ics-user-actions';
     details.className = 'ics-user-details';
     name.textContent = user.fullName;
-    subtitle.textContent = [user.rank, user.callSign]
-      .filter(Boolean)
-      .join(' · ') || 'Звання та позивний не вказано';
+
+    [
+      ['Звання', user.rank],
+      ['Позивний', user.callSign],
+      ['Статус', user.serviceStatus]
+    ].forEach(([label, value]) => {
+      const item = document.createElement('p');
+
+      item.textContent = `${label}: ${value || 'Не вказано'}`;
+      meta.appendChild(item);
+    });
 
     editButton.type = 'button';
     editButton.className = 'ics-user-action';
@@ -653,7 +663,7 @@ function renderIcsUsers() {
     deleteButton.textContent = 'Видалити';
     deleteButton.addEventListener('click', () => showDeleteIcsUserConfirm(user));
 
-    identity.append(name, subtitle);
+    identity.append(name, meta);
     actions.append(editButton, deleteButton);
     header.append(identity, actions);
     appendIcsUserDetail(details, 'Підрозділ', user.unit);
@@ -730,6 +740,7 @@ async function openIcsUserForm(user = null) {
     form.elements.fullName.value = user.fullName || '';
     form.elements.rank.value = user.rank || '';
     form.elements.callSign.value = user.callSign || '';
+    form.elements.serviceStatus.value = user.serviceStatus || '';
     form.elements.unit.value = user.unit || '';
     form.elements.position.value = user.position || '';
     form.elements.phone.value = formatUkrainianPhone(user.phone || '');
@@ -759,6 +770,7 @@ function loadBookPeople() {
       }
 
       bookPeople = Array.isArray(result.data) ? result.data : [];
+      syncIcsUsersWithBookPeople();
       return bookPeople;
     })
     .finally(() => {
@@ -766,6 +778,50 @@ function loadBookPeople() {
     });
 
   return bookPeopleLoadingPromise;
+}
+
+function syncIcsUsersWithBookPeople() {
+  if (!bookPeople || !bookPeople.length) {
+    return;
+  }
+
+  const peopleBySourceKey = new Map();
+
+  bookPeople.forEach(person => {
+    if (person.sourceKey) {
+      peopleBySourceKey.set(person.sourceKey, person);
+    }
+  });
+
+  if (!peopleBySourceKey.size) {
+    return;
+  }
+
+  let changed = false;
+
+  icsUsersCache.forEach(users => {
+    users.forEach(user => {
+      const bookPerson = peopleBySourceKey.get(user.sourceKey);
+
+      if (
+        bookPerson &&
+        bookPerson.serviceStatus &&
+        user.serviceStatus !== bookPerson.serviceStatus
+      ) {
+        user.serviceStatus = bookPerson.serviceStatus;
+        changed = true;
+      }
+    });
+  });
+
+  if (changed && activeIcsItem) {
+    const cachedUsers = icsUsersCache.get(activeIcsItem.id);
+
+    if (cachedUsers) {
+      icsUsers = cachedUsers;
+      renderIcsUsers();
+    }
+  }
 }
 
 function preloadBookPeople() {
@@ -824,7 +880,7 @@ function renderBookPeopleSuggestions() {
       button.className = 'ics-person-suggestion';
       button.setAttribute('role', 'option');
       name.textContent = person.fullName;
-      meta.textContent = [person.rank, person.callSign, person.position]
+      meta.textContent = [person.rank, person.callSign, person.serviceStatus, person.position]
         .filter(Boolean)
         .join(' · ');
       button.appendChild(name);
@@ -850,10 +906,10 @@ function selectBookPerson(person) {
   form.elements.sourceKey.value = person.sourceKey || '';
   form.elements.identityType.value = person.identityType || '';
 
-  ['rank', 'callSign', 'position'].forEach(field => {
-    if (Object.prototype.hasOwnProperty.call(person, field)) {
-      form.elements[field].value = person[field];
-    }
+  ['rank', 'callSign', 'serviceStatus', 'position'].forEach(field => {
+    form.elements[field].value = Object.prototype.hasOwnProperty.call(person, field)
+      ? person[field]
+      : '';
   });
 
   hideBookPeopleSuggestions();
@@ -864,6 +920,7 @@ function handleIcsUserNameInput() {
 
   form.elements.sourceKey.value = '';
   form.elements.identityType.value = '';
+  form.elements.serviceStatus.value = '';
   renderBookPeopleSuggestions();
 }
 
@@ -999,6 +1056,7 @@ function updatePersonInCachedIcsUsers(updatedUser) {
     'fullName',
     'rank',
     'callSign',
+    'serviceStatus',
     'unit',
     'position',
     'phone',
