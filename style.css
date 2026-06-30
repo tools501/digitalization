@@ -173,6 +173,19 @@ button {
   animation-delay: .36s;
 }
 
+.loader-grid.small {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 8px);
+  gap: 3px;
+  margin: 0 auto 10px;
+}
+
+.loader-grid.small span {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
 @keyframes loader-pulse {
   0%, 100% { opacity: .2; }
   50% { opacity: 1; }
@@ -788,8 +801,14 @@ button {
   font-size: 15px;
 }
 
+.ics-user-meta {
+  display: grid;
+  gap: 3px;
+  margin-top: 6px;
+}
+
 .ics-user-card-header p {
-  margin: 5px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 12px;
 }
@@ -1047,4 +1066,3 @@ button {
   }
 
 }
-/*test */
