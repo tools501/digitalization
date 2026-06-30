@@ -187,6 +187,9 @@
             </button>
           </div>
           <div id="icsUsersLoader" class="ics-users-message hidden">
+            <div class="loader-grid small" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
             Завантажуємо користувачів…
           </div>
           <div id="icsUsersEmpty" class="ics-users-message hidden">
@@ -295,6 +298,7 @@
         </label>
         <input name="sourceKey" type="hidden">
         <input name="identityType" type="hidden">
+        <input name="serviceStatus" type="hidden">
         <div class="ics-form-actions">
           <button id="saveIcsUserBtn" class="button button-primary" type="submit">
             Зберегти
