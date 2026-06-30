@@ -74,6 +74,13 @@ button {
   letter-spacing: 0;
 }
 
+.auth-text {
+  margin: -8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .google-button-wrap {
   display: flex;
   justify-content: center;
