@@ -821,6 +821,35 @@ button {
   font-size: 12px;
 }
 
+.ics-user-value.is-outdated,
+.ics-user-details .is-outdated dd {
+  color: #75520d;
+}
+
+.ics-user-value.is-outdated,
+.ics-user-details .is-outdated {
+  border-radius: 6px;
+  background: #fff6d8;
+}
+
+.ics-user-value.is-outdated {
+  padding: 4px 6px;
+  margin-left: -6px;
+}
+
+.ics-user-details .is-outdated {
+  padding: 8px;
+  margin: -8px;
+}
+
+.ics-user-book-diff {
+  display: block;
+  margin-top: 3px;
+  color: #9a6a0a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .ics-user-actions {
   display: flex;
   gap: 6px;
@@ -1074,4 +1103,3 @@ button {
   }
 
 }
-/* тест */
