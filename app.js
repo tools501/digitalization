@@ -556,6 +556,7 @@ async function loadIcsUsers(force = false) {
   if (!force && icsUsersCache.has(icsId)) {
     icsUsers = icsUsersCache.get(icsId);
     loadedIcsUsersId = icsId;
+    syncIcsUsersWithBookPeople();
     renderIcsUsers();
     return icsUsers;
   }
@@ -643,14 +644,18 @@ function renderIcsUsers() {
     name.textContent = user.fullName;
 
     [
-      ['Звання', user.rank],
-      ['Позивний', user.callSign],
-      ['Статус', user.serviceStatus]
-    ].forEach(([label, value]) => {
-      const item = document.createElement('p');
-
-      item.textContent = `${label}: ${value || 'Не вказано'}`;
-      meta.appendChild(item);
+      ['rank', 'Звання', user.rank],
+      ['callSign', 'Позивний', user.callSign],
+      ['serviceStatus', 'Статус', user.serviceStatus]
+    ].forEach(([field, label, value]) => {
+      meta.appendChild(
+        createIcsUserValueLine(
+          field,
+          label,
+          value,
+          user.bookDifferences
+        )
+      );
     });
 
     editButton.type = 'button';
@@ -667,7 +672,14 @@ function renderIcsUsers() {
     actions.append(editButton, deleteButton);
     header.append(identity, actions);
     appendIcsUserDetail(details, 'Підрозділ', user.unit);
-    appendIcsUserDetail(details, 'Посада', user.position);
+    appendIcsUserDetail(
+      details,
+      'Посада',
+      user.position,
+      '',
+      false,
+      user.bookDifferences && user.bookDifferences.position
+    );
     appendIcsUserDetail(details, 'Телефон', user.phone, 'tel');
     appendIcsUserDetail(details, 'Пошта', user.email, 'mailto');
     appendIcsUserDetail(details, 'Права доступу', user.accessRights, '', true);
@@ -676,12 +688,40 @@ function renderIcsUsers() {
   });
 }
 
-function appendIcsUserDetail(container, label, value, linkType = '', wide = false) {
+function createIcsUserValueLine(field, label, value, differences) {
+  const item = document.createElement('p');
+  const difference = differences && differences[field];
+
+  item.className = difference ? 'ics-user-value is-outdated' : '';
+  item.textContent = `${label}: ${value || 'Не вказано'}`;
+
+  if (difference) {
+    const hint = document.createElement('span');
+
+    hint.className = 'ics-user-book-diff';
+    hint.textContent = `У Book: ${difference.bookValue || 'Не вказано'}`;
+    item.appendChild(hint);
+  }
+
+  return item;
+}
+
+function appendIcsUserDetail(
+  container,
+  label,
+  value,
+  linkType = '',
+  wide = false,
+  difference = null
+) {
   const wrapper = document.createElement('div');
   const title = document.createElement('dt');
   const content = document.createElement('dd');
 
-  wrapper.className = wide ? 'wide' : '';
+  wrapper.className = [
+    wide ? 'wide' : '',
+    difference ? 'is-outdated' : ''
+  ].filter(Boolean).join(' ');
   title.textContent = label;
 
   if (value && linkType) {
@@ -692,6 +732,14 @@ function appendIcsUserDetail(container, label, value, linkType = '', wide = fals
     content.appendChild(link);
   } else {
     content.textContent = value || 'Не вказано';
+  }
+
+  if (difference) {
+    const hint = document.createElement('span');
+
+    hint.className = 'ics-user-book-diff';
+    hint.textContent = `У Book: ${difference.bookValue || 'Не вказано'}`;
+    content.appendChild(hint);
   }
 
   wrapper.append(title, content);
@@ -802,13 +850,24 @@ function syncIcsUsersWithBookPeople() {
   icsUsersCache.forEach(users => {
     users.forEach(user => {
       const bookPerson = peopleBySourceKey.get(user.sourceKey);
+      const nextDifferences = getIcsUserBookDifferences(
+        user,
+        bookPerson
+      );
+      const previousDifferences = JSON.stringify(
+        user.bookDifferences || {}
+      );
+      const serializedNextDifferences = JSON.stringify(
+        nextDifferences
+      );
 
-      if (
-        bookPerson &&
-        bookPerson.serviceStatus &&
-        user.serviceStatus !== bookPerson.serviceStatus
-      ) {
-        user.serviceStatus = bookPerson.serviceStatus;
+      if (previousDifferences !== serializedNextDifferences) {
+        if (Object.keys(nextDifferences).length) {
+          user.bookDifferences = nextDifferences;
+        } else {
+          delete user.bookDifferences;
+        }
+
         changed = true;
       }
     });
@@ -822,6 +881,39 @@ function syncIcsUsersWithBookPeople() {
       renderIcsUsers();
     }
   }
+}
+
+function getIcsUserBookDifferences(user, bookPerson) {
+  const differences = {};
+
+  if (!bookPerson) {
+    return differences;
+  }
+
+  [
+    ['rank', 'Звання'],
+    ['serviceStatus', 'Статус'],
+    ['position', 'Посада']
+  ].forEach(([field, label]) => {
+    const bookValue = normalizeBookCompareValue(bookPerson[field]);
+    const currentValue = normalizeBookCompareValue(user[field]);
+
+    if (bookValue && bookValue !== currentValue) {
+      differences[field] = {
+        label,
+        currentValue,
+        bookValue
+      };
+    }
+  });
+
+  return differences;
+}
+
+function normalizeBookCompareValue(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
 function preloadBookPeople() {
@@ -1021,6 +1113,7 @@ async function submitIcsUserForm(event) {
     icsUsers.sort((left, right) => left.fullName.localeCompare(right.fullName));
     loadedIcsUsersId = activeIcsItem.id;
     icsUsersCache.set(activeIcsItem.id, icsUsers);
+    syncIcsUsersWithBookPeople();
     returnToIcsUsers();
     showToast(
       wasEditing
