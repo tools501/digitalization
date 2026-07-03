@@ -443,10 +443,13 @@ button {
 }
 
 .ics-card-name {
-  overflow: hidden;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .registry-empty {
@@ -1103,5 +1106,3 @@ button {
   }
 
 }
-
-/* тест */
