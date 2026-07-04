@@ -765,24 +765,50 @@ function showIcsDetailsTab(tabName) {
   document.getElementById('icsUsersPanel').classList.toggle('hidden', !showUsers);
 
   if (showUsers) {
-    renderIcsUsers();
-    loadIcsUsers();
-    preloadBookPeople();
+    loadIcsUsers(false, { waitForBook: true });
   }
 }
 
-async function loadIcsUsers(force = false) {
+async function loadIcsUsers(force = false, options = {}) {
   if (!activeIcsItem) {
     return;
   }
 
   const icsId = activeIcsItem.id;
+  const waitForBook = Boolean(options.waitForBook);
+  const loader = document.getElementById('icsUsersLoader');
+
+  function showUsersLoader() {
+    loader.classList.remove('hidden');
+    document.getElementById('icsUsersEmpty').classList.add('hidden');
+    document.getElementById('icsUsersList').replaceChildren();
+    document.getElementById('icsUsersCount').textContent = '';
+  }
 
   if (!force && icsUsersCache.has(icsId)) {
+    if (waitForBook && !bookPeople) {
+      showUsersLoader();
+
+      try {
+        await loadBookPeople({ renderAfterSync: false });
+      } catch (error) {
+        console.error(error);
+        showRequestError('Не вдалося завантажити довідник Book', error);
+      } finally {
+        if (activeIcsItem && activeIcsItem.id === icsId) {
+          loader.classList.add('hidden');
+        }
+      }
+    }
+
     icsUsers = icsUsersCache.get(icsId);
     loadedIcsUsersId = icsId;
-    syncIcsUsersWithBookPeople();
-    renderIcsUsers();
+    syncIcsUsersWithBookPeople({ render: false });
+
+    if (activeIcsItem && activeIcsItem.id === icsId) {
+      renderIcsUsers();
+    }
+
     return icsUsers;
   }
 
@@ -790,14 +816,12 @@ async function loadIcsUsers(force = false) {
     return icsUsersLoadingPromises.get(icsId);
   }
 
-  const loader = document.getElementById('icsUsersLoader');
+  showUsersLoader();
 
-  loader.classList.remove('hidden');
-  document.getElementById('icsUsersEmpty').classList.add('hidden');
-  document.getElementById('icsUsersList').replaceChildren();
+  const loadingPromise = (async () => {
+    try {
+      const result = await projectApi('getIcsUsers', { icsId });
 
-  const loadingPromise = projectApi('getIcsUsers', { icsId })
-    .then(result => {
       if (!result.success) {
         throw new Error(result.error || 'ICS_USERS_LOAD_FAILED');
       }
@@ -805,7 +829,20 @@ async function loadIcsUsers(force = false) {
       const users = Array.isArray(result.data) ? result.data : [];
 
       icsUsersCache.set(icsId, users);
-      syncIcsUsersWithBookPeople();
+
+      if (waitForBook) {
+        try {
+          await loadBookPeople({ renderAfterSync: false });
+        } catch (error) {
+          console.error(error);
+
+          if (activeIcsItem && activeIcsItem.id === icsId) {
+            showRequestError('Не вдалося завантажити довідник Book', error);
+          }
+        }
+      }
+
+      syncIcsUsersWithBookPeople({ render: false });
 
       if (activeIcsItem && activeIcsItem.id === icsId) {
         icsUsers = users;
@@ -814,8 +851,7 @@ async function loadIcsUsers(force = false) {
       }
 
       return users;
-    })
-    .catch(error => {
+    } catch (error) {
       console.error(error);
 
       if (activeIcsItem && activeIcsItem.id === icsId) {
@@ -823,14 +859,14 @@ async function loadIcsUsers(force = false) {
       }
 
       return null;
-    })
-    .finally(() => {
+    } finally {
       icsUsersLoadingPromises.delete(icsId);
 
       if (activeIcsItem && activeIcsItem.id === icsId) {
         loader.classList.add('hidden');
       }
-    });
+    }
+  })();
 
   icsUsersLoadingPromises.set(icsId, loadingPromise);
   return loadingPromise;
@@ -1027,13 +1063,25 @@ async function openIcsUserForm(user = null) {
   setTimeout(() => form.elements.fullName.focus(), 190);
 }
 
-function loadBookPeople() {
+function loadBookPeople(options = {}) {
+  const renderAfterSync = options.renderAfterSync !== false;
+
   if (bookPeople) {
+    if (renderAfterSync) {
+      syncIcsUsersWithBookPeople();
+    }
+
     return Promise.resolve(bookPeople);
   }
 
   if (bookPeopleLoadingPromise) {
-    return bookPeopleLoadingPromise;
+    return bookPeopleLoadingPromise.then(people => {
+      if (renderAfterSync) {
+        syncIcsUsersWithBookPeople();
+      }
+
+      return people;
+    });
   }
 
   bookPeopleLoadingPromise = projectApi('getBookPeople')
@@ -1043,17 +1091,24 @@ function loadBookPeople() {
       }
 
       bookPeople = Array.isArray(result.data) ? result.data : [];
-      syncIcsUsersWithBookPeople();
       return bookPeople;
     })
     .finally(() => {
       bookPeopleLoadingPromise = null;
     });
 
-  return bookPeopleLoadingPromise;
+  return bookPeopleLoadingPromise.then(people => {
+    if (renderAfterSync) {
+      syncIcsUsersWithBookPeople();
+    }
+
+    return people;
+  });
 }
 
-function syncIcsUsersWithBookPeople() {
+function syncIcsUsersWithBookPeople(options = {}) {
+  const shouldRender = options.render !== false;
+
   if (!bookPeople || !bookPeople.length) {
     return;
   }
@@ -1098,7 +1153,7 @@ function syncIcsUsersWithBookPeople() {
     });
   });
 
-  if (changed && activeIcsItem) {
+  if (shouldRender && changed && activeIcsItem) {
     const cachedUsers = icsUsersCache.get(activeIcsItem.id);
 
     if (cachedUsers) {
