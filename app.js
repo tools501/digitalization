@@ -6,6 +6,7 @@ const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
 const REQUEST_TIMEOUT_MS = 25000;
 const MOBILE_VIEWPORT_QUERY = '(max-width: 760px)';
 const ICS_REGISTRY_TAB_ID = 'ics-registry';
+const PEOPLE_ICS_TAB_ID = 'people-ics';
 
 let authToken = '';
 let pendingTwoFactorAuth = null;
@@ -404,6 +405,11 @@ function renderTabs() {
     'Облік ІКС'
   ));
 
+  tabs.appendChild(createTabButton(
+    PEOPLE_ICS_TAB_ID,
+    'ІКС по користувачу'
+  ));
+
   diagrams.forEach(diagram => {
     tabs.appendChild(createTabButton(diagram.id, diagram.title));
   });
@@ -428,16 +434,23 @@ function createTabButton(id, title) {
 
 function renderCurrentView() {
   const registry = document.getElementById('icsRegistry');
+  const peopleSearch = document.getElementById('peopleIcsSearch');
   const dashboard = document.getElementById('dashboardShell');
   const app = document.getElementById('app');
   const isRegistry = activeDiagramId === ICS_REGISTRY_TAB_ID;
+  const isPeopleSearch = activeDiagramId === PEOPLE_ICS_TAB_ID;
 
   registry.classList.toggle('hidden', !isRegistry);
-  dashboard.classList.toggle('hidden', isRegistry);
-  app.classList.toggle('registry-mode', isRegistry);
+  peopleSearch.classList.toggle('hidden', !isPeopleSearch);
+  dashboard.classList.toggle('hidden', isRegistry || isPeopleSearch);
+  app.classList.toggle('registry-mode', isRegistry || isPeopleSearch);
 
   if (isRegistry) {
     renderIcsList();
+    return;
+  }
+
+  if (isPeopleSearch) {
     return;
   }
 
@@ -464,6 +477,148 @@ function renderIcsList() {
     card.append(visual, name);
     card.addEventListener('click', () => openIcsDetails(item));
     list.appendChild(card);
+  });
+}
+
+async function searchPeopleFromDatabase() {
+  const input = document.getElementById('peopleSearchInput');
+  const results = document.getElementById('peopleSearchResults');
+  const memberships = document.getElementById('personIcsResult');
+  const query = input.value.trim();
+
+  results.replaceChildren();
+  memberships.replaceChildren();
+
+  if (query.length < 2) {
+    results.textContent = 'Введіть мінімум 2 символи';
+    return;
+  }
+
+  results.textContent = 'Шукаємо…';
+
+  try {
+    const result = await projectApi('searchPeople', { query });
+
+    if (!result.success) {
+      throw new Error(result.error || 'PEOPLE_SEARCH_FAILED');
+    }
+
+    renderPeopleSearchResults(Array.isArray(result.data) ? result.data : []);
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося виконати пошук', error);
+    results.textContent = 'Помилка пошуку';
+  }
+}
+
+function renderPeopleSearchResults(people) {
+  const results = document.getElementById('peopleSearchResults');
+
+  results.replaceChildren();
+
+  if (!people.length) {
+    results.textContent = 'Нічого не знайдено';
+    return;
+  }
+
+  people.forEach(person => {
+    const button = document.createElement('button');
+    const name = document.createElement('strong');
+    const meta = document.createElement('span');
+
+    button.type = 'button';
+    button.className = 'person-search-result';
+    name.textContent = person.fullName;
+    meta.textContent = [
+      person.rank,
+      person.callSign,
+      person.serviceStatus,
+      person.position
+    ].filter(Boolean).join(' · ');
+    button.appendChild(name);
+
+    if (meta.textContent) {
+      button.appendChild(meta);
+    }
+
+    button.addEventListener('click', () => loadPersonIcsMemberships(person));
+    results.appendChild(button);
+  });
+}
+
+async function loadPersonIcsMemberships(person) {
+  const container = document.getElementById('personIcsResult');
+
+  container.textContent = 'Завантажуємо ІКС…';
+
+  try {
+    const result = await projectApi(
+      'getPersonIcsMemberships',
+      {
+        personId: person.id
+      }
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'PERSON_ICS_LOAD_FAILED');
+    }
+
+    renderPersonIcsMemberships(result.data);
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося завантажити ІКС користувача', error);
+    container.textContent = 'Помилка завантаження ІКС';
+  }
+}
+
+function renderPersonIcsMemberships(data) {
+  const container = document.getElementById('personIcsResult');
+  const person = data && data.person ? data.person : {};
+  const memberships = data && Array.isArray(data.memberships)
+    ? data.memberships
+    : [];
+
+  container.replaceChildren();
+
+  const title = document.createElement('h3');
+
+  title.textContent = person.fullName || 'Користувач';
+  container.appendChild(title);
+
+  if (!memberships.length) {
+    const empty = document.createElement('p');
+
+    empty.textContent = 'Користувача не додано до ІКС';
+    container.appendChild(empty);
+    return;
+  }
+
+  memberships.forEach(item => {
+    const system = icsSystems.find(systemItem =>
+      String(systemItem.id) === String(item.icsId)
+    );
+    const card = document.createElement(system ? 'button' : 'article');
+    const name = document.createElement('strong');
+    const access = document.createElement('p');
+    const updated = document.createElement('small');
+
+    card.className = 'person-ics-card';
+    if (system) {
+      card.type = 'button';
+      card.addEventListener('click', () => openIcsDetails(system));
+    }
+    name.textContent = item.icsName || item.icsId;
+    access.textContent = `Права доступу: ${item.accessRights || 'Не вказано'}`;
+    updated.textContent = item.updatedAt
+      ? `Оновлено: ${item.updatedAt}`
+      : '';
+    card.append(name, access);
+
+    if (updated.textContent) {
+      card.appendChild(updated);
+    }
+
+    container.appendChild(card);
   });
 }
 
@@ -1636,6 +1791,14 @@ document.getElementById('networkHubBtn')
   .addEventListener('click', goToHub);
 document.getElementById('networkRetryBtn')
   .addEventListener('click', trySharedSession);
+document.getElementById('peopleSearchBtn')
+  .addEventListener('click', searchPeopleFromDatabase);
+document.getElementById('peopleSearchInput')
+  .addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      searchPeopleFromDatabase();
+    }
+  });
 document.getElementById('zoomOutBtn')
   .addEventListener('click', () => changeDiagramZoom(-25));
 document.getElementById('zoomResetBtn')
