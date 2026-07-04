@@ -114,6 +114,30 @@
       </div>
     </section>
 
+    <section id="peopleIcsSearch" class="registry-shell people-search-shell hidden">
+      <header class="registry-header">
+        <h2>ІКС по користувачу</h2>
+      </header>
+      <div class="people-search-panel">
+        <label>
+          <span>Користувач із бази people</span>
+          <div class="people-search-row">
+            <input
+              id="peopleSearchInput"
+              type="text"
+              placeholder="ПІБ, позивний або посада"
+              autocomplete="off"
+            >
+            <button id="peopleSearchBtn" class="button button-primary" type="button">
+              Знайти
+            </button>
+          </div>
+        </label>
+        <div id="peopleSearchResults" class="people-search-results"></div>
+        <div id="personIcsResult" class="person-ics-result"></div>
+      </div>
+    </section>
+
     <section id="dashboardShell" class="dashboard-shell">
       <header class="dashboard-header">
         <h2>
