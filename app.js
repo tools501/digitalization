@@ -28,6 +28,8 @@ let activeIcsUser = null;
 let editingIcsUserId = '';
 let bookPeople = null;
 let bookPeopleLoadingPromise = null;
+let peopleDatabase = null;
+let peopleDatabaseLoadingPromise = null;
 let apiRequestSequence = 0;
 
 function getSharedAuthToken() {
@@ -451,6 +453,7 @@ function renderCurrentView() {
   }
 
   if (isPeopleSearch) {
+    loadPeopleDatabase();
     return;
   }
 
@@ -480,41 +483,108 @@ function renderIcsList() {
   });
 }
 
-async function searchPeopleFromDatabase() {
+async function loadPeopleDatabase(force = false) {
   const input = document.getElementById('peopleSearchInput');
   const results = document.getElementById('peopleSearchResults');
   const memberships = document.getElementById('personIcsResult');
-  const query = input.value.trim();
+
+  if (peopleDatabase && !force) {
+    renderPeopleSearchResults(filterPeopleDatabase(input.value));
+    return peopleDatabase;
+  }
+
+  if (!peopleDatabaseLoadingPromise || force) {
+    results.textContent = 'Завантажуємо користувачів…';
+    memberships.replaceChildren();
+    peopleDatabaseLoadingPromise = projectApi('getPeople')
+      .then(result => {
+        if (!result.success) {
+          throw new Error(result.error || 'PEOPLE_LOAD_FAILED');
+        }
+
+        peopleDatabase = Array.isArray(result.data) ? result.data : [];
+        return peopleDatabase;
+      })
+      .finally(() => {
+        peopleDatabaseLoadingPromise = null;
+      });
+  }
+
+  try {
+    await peopleDatabaseLoadingPromise;
+    renderPeopleSearchResults(filterPeopleDatabase(input.value));
+    return peopleDatabase;
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося завантажити користувачів', error);
+    results.textContent = 'Помилка завантаження користувачів';
+    return [];
+  }
+}
+
+function filterPeopleDatabase(queryValue) {
+  const query = normalizeSearchText(queryValue);
+
+  if (!peopleDatabase) {
+    return [];
+  }
+
+  if (query.length < 2) {
+    return peopleDatabase.slice(0, 30);
+  }
+
+  return peopleDatabase
+    .filter(person => {
+      const haystack = normalizeSearchText([
+        person.fullName,
+        person.rank,
+        person.callSign,
+        person.position,
+        person.serviceStatus
+      ].filter(Boolean).join(' '));
+
+      return haystack.includes(query);
+    })
+    .slice(0, 30);
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[’`]/g, "'")
+    .replace(/\s+/g, ' ');
+}
+
+function handlePeopleSearchInput() {
+  const memberships = document.getElementById('personIcsResult');
+
+  memberships.replaceChildren();
+  renderPeopleSearchResults(filterPeopleDatabase(
+    document.getElementById('peopleSearchInput').value
+  ));
+}
+
+function renderPeopleSearchResults(people) {
+  const results = document.getElementById('peopleSearchResults');
+  const query = document.getElementById('peopleSearchInput').value.trim();
 
   results.replaceChildren();
-  memberships.replaceChildren();
+
+  if (!peopleDatabase) {
+    results.textContent = 'Завантажуємо користувачів…';
+    return;
+  }
+
+  if (!query) {
+    results.textContent = `Завантажено користувачів: ${peopleDatabase.length}. Почніть вводити ПІБ, позивний або посаду.`;
+    return;
+  }
 
   if (query.length < 2) {
     results.textContent = 'Введіть мінімум 2 символи';
     return;
   }
-
-  results.textContent = 'Шукаємо…';
-
-  try {
-    const result = await projectApi('searchPeople', { query });
-
-    if (!result.success) {
-      throw new Error(result.error || 'PEOPLE_SEARCH_FAILED');
-    }
-
-    renderPeopleSearchResults(Array.isArray(result.data) ? result.data : []);
-  } catch (error) {
-    console.error(error);
-    showRequestError('Не вдалося виконати пошук', error);
-    results.textContent = 'Помилка пошуку';
-  }
-}
-
-function renderPeopleSearchResults(people) {
-  const results = document.getElementById('peopleSearchResults');
-
-  results.replaceChildren();
 
   if (!people.length) {
     results.textContent = 'Нічого не знайдено';
@@ -1792,11 +1862,17 @@ document.getElementById('networkHubBtn')
 document.getElementById('networkRetryBtn')
   .addEventListener('click', trySharedSession);
 document.getElementById('peopleSearchBtn')
-  .addEventListener('click', searchPeopleFromDatabase);
+  .addEventListener('click', () => loadPeopleDatabase(true));
+document.getElementById('peopleSearchInput')
+  .addEventListener('input', handlePeopleSearchInput);
 document.getElementById('peopleSearchInput')
   .addEventListener('keydown', event => {
     if (event.key === 'Enter') {
-      searchPeopleFromDatabase();
+      const people = filterPeopleDatabase(event.currentTarget.value);
+
+      if (people.length === 1) {
+        loadPersonIcsMemberships(people[0]);
+      }
     }
   });
 document.getElementById('zoomOutBtn')
