@@ -458,6 +458,77 @@ button {
   text-align: center;
 }
 
+.people-search-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.people-search-panel label {
+  display: grid;
+  gap: 7px;
+  color: #43494f;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.people-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.people-search-row input {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.people-search-results,
+.person-ics-result {
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.person-search-result,
+.person-ics-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.person-search-result:hover,
+.person-search-result:focus-visible,
+button.person-ics-card:hover,
+button.person-ics-card:focus-visible {
+  border-color: #aeb4ba;
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.person-search-result span,
+.person-ics-card p,
+.person-ics-card small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.person-ics-result h3 {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
 .ics-modal {
   position: fixed;
   inset: 0;
@@ -1018,6 +1089,10 @@ button {
     padding: 12px;
   }
 
+  .people-search-row {
+    grid-template-columns: 1fr;
+  }
+
   .ics-card {
     min-height: 76px;
     padding: 11px;
@@ -1106,4 +1181,3 @@ button {
   }
 
 }
-/* тест */
