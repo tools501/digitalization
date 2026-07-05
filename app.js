@@ -365,8 +365,8 @@ async function authenticateWithToken(token, options = {}) {
     }
 
     applyBootstrap(result.data);
-    preloadBookPeople();
-    preloadPeopleDatabase();
+    await loadStartupData();
+    renderRegistryUsersChangesIfVisible();
     showOnly('app');
   } catch (error) {
     console.error(error);
@@ -413,6 +413,13 @@ function applyBootstrap(data) {
 
   renderTabs();
   renderCurrentView();
+}
+
+async function loadStartupData() {
+  await Promise.all([
+    loadBookPeople({ renderAfterSync: false }),
+    fetchPeopleDatabase()
+  ]);
 }
 
 function renderTabs() {
@@ -759,16 +766,6 @@ function fetchPeopleDatabase(force = false) {
   }
 
   return peopleDatabaseLoadingPromise;
-}
-
-function preloadPeopleDatabase() {
-  fetchPeopleDatabase().catch(error => {
-    console.warn('[People database preload failed]', {
-      errorName: error.name,
-      errorMessage: error.message,
-      timestamp: new Date().toISOString()
-    });
-  });
 }
 
 function renderRegistryUsersChangesIfVisible() {
@@ -1453,20 +1450,6 @@ function normalizeBookCompareValue(value) {
   return String(value || '')
     .trim()
     .replace(/\s+/g, ' ');
-}
-
-function preloadBookPeople() {
-  if (bookPeople) {
-    return;
-  }
-
-  loadBookPeople({ renderAfterSync: false }).catch(error => {
-    console.warn('[Book people preload failed]', {
-      errorName: error.name,
-      errorMessage: error.message,
-      timestamp: new Date().toISOString()
-    });
-  });
 }
 
 function normalizeBookPeopleSearch(value) {
