@@ -4,6 +4,15 @@ const HUB_API_URL =
 const HUB_URL = '/hub/';
 const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
 const REQUEST_TIMEOUT_MS = 25000;
+const WRITE_REQUEST_TIMEOUT_MS = 60000;
+const LONG_PROJECT_ACTIONS = new Set([
+  'createIcs',
+  'updateIcs',
+  'deleteIcs',
+  'createIcsUser',
+  'updateIcsUser',
+  'deleteIcsUser'
+]);
 const MOBILE_VIEWPORT_QUERY = '(max-width: 760px)';
 const ICS_REGISTRY_TAB_ID = 'ics-registry';
 const PEOPLE_ICS_TAB_ID = 'people-ics';
@@ -30,6 +39,8 @@ let bookPeople = null;
 let bookPeopleLoadingPromise = null;
 let peopleDatabase = null;
 let peopleDatabaseLoadingPromise = null;
+let registryIcsFilter = null;
+let registryIcsFilterRequestId = 0;
 let apiRequestSequence = 0;
 
 function getSharedAuthToken() {
@@ -76,9 +87,10 @@ async function requestJson(url, options, context = {}) {
   const requestId = `${Date.now()}-${++apiRequestSequence}`;
   const startedAt = performance.now();
   let response = null;
+  const timeoutMs = context.timeoutMs || REQUEST_TIMEOUT_MS;
   const timer = setTimeout(
     () => controller.abort(),
-    REQUEST_TIMEOUT_MS
+    timeoutMs
   );
 
   try {
@@ -132,6 +144,7 @@ function logApiRequest(level, details) {
     action: details.context.action || 'unknown',
     method: details.context.method || 'POST',
     durationMs,
+    timeoutMs: details.context.timeoutMs || REQUEST_TIMEOUT_MS,
     status: response ? response.status : null,
     statusText: response ? response.statusText : null,
     redirected: response ? response.redirected : null,
@@ -188,7 +201,10 @@ async function projectApi(action, data = {}, token = authToken) {
   }, {
     service: 'digitalization',
     action,
-    method: 'POST'
+    method: 'POST',
+    timeoutMs: LONG_PROJECT_ACTIONS.has(action)
+      ? WRITE_REQUEST_TIMEOUT_MS
+      : REQUEST_TIMEOUT_MS
   });
 }
 
@@ -466,11 +482,16 @@ function renderCurrentView() {
 function renderIcsList() {
   const list = document.getElementById('icsList');
   const empty = document.getElementById('icsEmpty');
+  const systemsToRender = getRegistryIcsSystemsToRender();
 
   list.replaceChildren();
-  empty.classList.toggle('hidden', icsSystems.length > 0);
+  renderRegistryIcsFilter();
+  empty.textContent = registryIcsFilter && registryIcsFilter.ready
+    ? 'Користувача не додано до ІКС'
+    : 'Записи ІКС відсутні';
+  empty.classList.toggle('hidden', systemsToRender.length > 0);
 
-  icsSystems.forEach(item => {
+  systemsToRender.forEach(item => {
     const card = document.createElement('button');
     const visual = createIcsVisual(item);
     const name = document.createElement('span');
@@ -484,6 +505,97 @@ function renderIcsList() {
     card.addEventListener('click', () => openIcsDetails(item));
     list.appendChild(card);
   });
+}
+
+function getRegistryIcsSystemsToRender() {
+  if (!registryIcsFilter || !registryIcsFilter.ready) {
+    return icsSystems;
+  }
+
+  const ids = new Set(registryIcsFilter.icsIds);
+
+  return icsSystems.filter(item => ids.has(String(item.id)));
+}
+
+function renderRegistryIcsFilter() {
+  const container = document.getElementById('registryIcsFilter');
+
+  container.replaceChildren();
+
+  if (!registryIcsFilter) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  const text = document.createElement('span');
+  const resetButton = document.createElement('button');
+
+  text.textContent = registryIcsFilter.loading
+    ? `Завантажуємо ІКС користувача: ${registryIcsFilter.person.fullName}`
+    : `Показано ІКС користувача: ${registryIcsFilter.person.fullName} (${registryIcsFilter.icsIds.length})`;
+  resetButton.type = 'button';
+  resetButton.className = 'button button-secondary';
+  resetButton.textContent = 'Показати всі ІКС';
+  resetButton.addEventListener('click', resetRegistryIcsFilter);
+  container.append(text, resetButton);
+  container.classList.remove('hidden');
+}
+
+function resetRegistryIcsFilter() {
+  registryIcsFilterRequestId++;
+  registryIcsFilter = null;
+  renderIcsList();
+}
+
+async function showRegistryIcsForPerson(person) {
+  const requestId = ++registryIcsFilterRequestId;
+
+  registryIcsFilter = {
+    person,
+    icsIds: [],
+    loading: true,
+    ready: false
+  };
+  renderIcsList();
+
+  try {
+    const result = await projectApi(
+      'getPersonIcsMemberships',
+      {
+        personId: person.id
+      }
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'PERSON_ICS_LOAD_FAILED');
+    }
+
+    if (requestId !== registryIcsFilterRequestId) {
+      return;
+    }
+
+    const memberships = result.data && Array.isArray(result.data.memberships)
+      ? result.data.memberships
+      : [];
+
+    registryIcsFilter = {
+      person: result.data && result.data.person
+        ? result.data.person
+        : person,
+      icsIds: memberships.map(item => String(item.icsId)),
+      loading: false,
+      ready: true
+    };
+    renderIcsList();
+  } catch (error) {
+    console.error(error);
+
+    if (requestId === registryIcsFilterRequestId) {
+      registryIcsFilter = null;
+      renderIcsList();
+      showRequestError('Не вдалося завантажити ІКС користувача', error);
+    }
+  }
 }
 
 function renderRegistryUsersChanges() {
@@ -512,11 +624,14 @@ function renderRegistryUsersChanges() {
 
   changes.forEach(({ person, differences }) => {
     const card = document.createElement('article');
-    const name = document.createElement('strong');
+    const name = document.createElement('button');
     const details = document.createElement('ul');
 
     card.className = 'user-change-card';
+    name.type = 'button';
+    name.className = 'user-change-name';
     name.textContent = person.fullName;
+    name.addEventListener('click', () => showRegistryIcsForPerson(person));
 
     Object.values(differences).forEach(difference => {
       const item = document.createElement('li');
@@ -2196,4 +2311,3 @@ window.matchMedia(MOBILE_VIEWPORT_QUERY)
   .addEventListener('change', applyDiagramZoom);
 
 trySharedSession();
-/тест/ 
