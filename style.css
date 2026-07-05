@@ -394,6 +394,15 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
   padding: 18px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.ics-list.is-filter-loading {
+  opacity: 0.18;
+  pointer-events: none;
+  transform: translateY(6px);
 }
 
 .ics-card {
