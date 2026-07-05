@@ -2196,3 +2196,4 @@ window.matchMedia(MOBILE_VIEWPORT_QUERY)
   .addEventListener('change', applyDiagramZoom);
 
 trySharedSession();
+/тест/ 
