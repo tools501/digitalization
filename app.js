@@ -349,6 +349,7 @@ async function authenticateWithToken(token, options = {}) {
     }
 
     applyBootstrap(result.data);
+    preloadBookPeople();
     showOnly('app');
   } catch (error) {
     console.error(error);
@@ -1201,7 +1202,7 @@ function preloadBookPeople() {
     return;
   }
 
-  loadBookPeople().catch(error => {
+  loadBookPeople({ renderAfterSync: false }).catch(error => {
     console.warn('[Book people preload failed]', {
       errorName: error.name,
       errorMessage: error.message,
