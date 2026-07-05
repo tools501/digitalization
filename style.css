@@ -857,42 +857,44 @@ button.person-ics-card:focus-visible {
   gap: 10px;
 }
 
-.ics-users-changes {
+.users-changes-board {
   display: grid;
   gap: 10px;
-  margin-bottom: 14px;
+  margin: 0 32px 18px;
   padding: 14px;
   border: 1px solid #f0d58a;
   border-radius: 10px;
   background: #fff8df;
 }
 
-.ics-users-changes h3 {
+.users-changes-board h3 {
   margin: 0;
   color: #75520d;
   font-size: 14px;
 }
 
-.ics-users-changes-list {
+.users-changes-list {
   display: grid;
   gap: 8px;
+  color: #75520d;
+  font-size: 13px;
 }
 
-.ics-user-change-card {
+.user-change-card {
   padding: 10px 12px;
   border: 1px solid #f0d58a;
   border-radius: 8px;
   background: #fffdf5;
 }
 
-.ics-user-change-card strong {
+.user-change-card strong {
   display: block;
   margin-bottom: 6px;
   color: var(--text);
   font-size: 13px;
 }
 
-.ics-user-change-card ul {
+.user-change-card ul {
   margin: 0;
   padding-left: 18px;
   color: #75520d;
@@ -1126,6 +1128,10 @@ button.person-ics-card:focus-visible {
     padding: 0 14px;
   }
 
+  .users-changes-board {
+    margin: 0 12px 12px;
+  }
+
   .ics-list {
     grid-template-columns: 1fr;
     padding: 12px;
@@ -1223,4 +1229,3 @@ button.person-ics-card:focus-visible {
   }
 
 }
-/* тест */
