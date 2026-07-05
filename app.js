@@ -350,6 +350,7 @@ async function authenticateWithToken(token, options = {}) {
 
     applyBootstrap(result.data);
     preloadBookPeople();
+    preloadPeopleDatabase();
     showOnly('app');
   } catch (error) {
     console.error(error);
@@ -494,9 +495,27 @@ async function loadPeopleDatabase(force = false) {
     return peopleDatabase;
   }
 
+  results.textContent = 'Завантажуємо користувачів…';
+  memberships.replaceChildren();
+
+  try {
+    await fetchPeopleDatabase(force);
+    renderPeopleSearchResults(filterPeopleDatabase(input.value));
+    return peopleDatabase;
+  } catch (error) {
+    console.error(error);
+    showRequestError('Не вдалося завантажити користувачів', error);
+    results.textContent = 'Помилка завантаження користувачів';
+    return [];
+  }
+}
+
+function fetchPeopleDatabase(force = false) {
+  if (peopleDatabase && !force) {
+    return Promise.resolve(peopleDatabase);
+  }
+
   if (!peopleDatabaseLoadingPromise || force) {
-    results.textContent = 'Завантажуємо користувачів…';
-    memberships.replaceChildren();
     peopleDatabaseLoadingPromise = projectApi('getPeople')
       .then(result => {
         if (!result.success) {
@@ -511,16 +530,17 @@ async function loadPeopleDatabase(force = false) {
       });
   }
 
-  try {
-    await peopleDatabaseLoadingPromise;
-    renderPeopleSearchResults(filterPeopleDatabase(input.value));
-    return peopleDatabase;
-  } catch (error) {
-    console.error(error);
-    showRequestError('Не вдалося завантажити користувачів', error);
-    results.textContent = 'Помилка завантаження користувачів';
-    return [];
-  }
+  return peopleDatabaseLoadingPromise;
+}
+
+function preloadPeopleDatabase() {
+  fetchPeopleDatabase().catch(error => {
+    console.warn('[People database preload failed]', {
+      errorName: error.name,
+      errorMessage: error.message,
+      timestamp: new Date().toISOString()
+    });
+  });
 }
 
 function filterPeopleDatabase(queryValue) {
@@ -784,6 +804,7 @@ async function loadIcsUsers(force = false, options = {}) {
     document.getElementById('icsUsersEmpty').classList.add('hidden');
     document.getElementById('icsUsersList').replaceChildren();
     document.getElementById('icsUsersCount').textContent = '';
+    document.getElementById('icsUsersChanges').classList.add('hidden');
   }
 
   if (!force && icsUsersCache.has(icsId)) {
@@ -879,6 +900,7 @@ function renderIcsUsers() {
   const count = document.getElementById('icsUsersCount');
 
   list.replaceChildren();
+  renderIcsUsersChanges();
   count.textContent = loadedIcsUsersId
     ? `Користувачів: ${icsUsers.length}`
     : '';
@@ -950,6 +972,42 @@ function renderIcsUsers() {
   });
 }
 
+function renderIcsUsersChanges() {
+  const panel = document.getElementById('icsUsersChanges');
+  const list = document.getElementById('icsUsersChangesList');
+  const usersWithChanges = icsUsers.filter(user =>
+    user.bookDifferences &&
+    Object.keys(user.bookDifferences).length > 0
+  );
+
+  list.replaceChildren();
+  panel.classList.toggle('hidden', usersWithChanges.length === 0);
+
+  if (!usersWithChanges.length) {
+    return;
+  }
+
+  usersWithChanges.forEach(user => {
+    const card = document.createElement('article');
+    const title = document.createElement('strong');
+    const changes = document.createElement('ul');
+
+    card.className = 'ics-user-change-card';
+    title.textContent = user.fullName;
+
+    Object.values(user.bookDifferences).forEach(difference => {
+      const item = document.createElement('li');
+
+      item.textContent =
+        `${difference.label}: ${difference.currentValue || 'Не вказано'} → ${difference.bookValue || 'Не вказано'}`;
+      changes.appendChild(item);
+    });
+
+    card.append(title, changes);
+    list.appendChild(card);
+  });
+}
+
 function createIcsUserValueLine(field, label, value, differences) {
   const item = document.createElement('p');
   const difference = differences && differences[field];
@@ -1016,14 +1074,17 @@ async function openIcsUserForm(user = null) {
   const form = document.getElementById('icsUserForm');
   const requestedIcsId = activeIcsItem.id;
 
-  if (!user && !bookPeople) {
-    setIcsBusy(true, 'Завантажуємо довідник Book');
+  if (!user && (!bookPeople || !peopleDatabase)) {
+    setIcsBusy(true, 'Завантажуємо довідники');
 
     try {
-      await loadBookPeople();
+      await Promise.all([
+        loadBookPeople({ renderAfterSync: false }),
+        fetchPeopleDatabase()
+      ]);
     } catch (error) {
       console.error(error);
-      showRequestError('Не вдалося завантажити довідник Book', error);
+      showRequestError('Не вдалося завантажити довідники', error);
       return;
     } finally {
       setIcsBusy(false);
@@ -1274,6 +1335,7 @@ function renderBookPeopleSuggestions() {
 
 function selectBookPerson(person) {
   const form = document.getElementById('icsUserForm');
+  const localPerson = findLocalPersonForBookPerson(person);
 
   form.elements.fullName.value = person.fullName;
   form.elements.sourceKey.value = person.sourceKey || '';
@@ -1285,7 +1347,44 @@ function selectBookPerson(person) {
       : '';
   });
 
+  if (localPerson) {
+    form.elements.phone.value = localPerson.phone
+      ? formatUkrainianPhone(localPerson.phone)
+      : form.elements.phone.value;
+    form.elements.email.value = localPerson.email || form.elements.email.value;
+  }
+
   hideBookPeopleSuggestions();
+}
+
+function findLocalPersonForBookPerson(bookPerson) {
+  if (!peopleDatabase || !bookPerson) {
+    return null;
+  }
+
+  if (bookPerson.sourceKey) {
+    const sourceMatch = peopleDatabase.find(person =>
+      String(person.sourceKey || '') === String(bookPerson.sourceKey)
+    );
+
+    if (sourceMatch) {
+      return sourceMatch;
+    }
+  }
+
+  const bookName = normalizePersonNameForMatch(bookPerson.fullName);
+  const nameMatches = peopleDatabase.filter(person =>
+    normalizePersonNameForMatch(person.fullName) === bookName
+  );
+
+  return nameMatches.length === 1 ? nameMatches[0] : null;
+}
+
+function normalizePersonNameForMatch(value) {
+  return String(value || '')
+    .trim()
+    .toLocaleLowerCase('uk')
+    .replace(/\s+/g, ' ');
 }
 
 function handleIcsUserNameInput() {
@@ -1448,6 +1547,38 @@ function updatePersonInCachedIcsUsers(updatedUser) {
       });
     });
   });
+
+  updatePersonInPeopleDatabase(updatedUser, personFields);
+}
+
+function updatePersonInPeopleDatabase(updatedUser, fields) {
+  if (!peopleDatabase || !updatedUser.personId) {
+    return;
+  }
+
+  const index = peopleDatabase.findIndex(person =>
+    String(person.id) === String(updatedUser.personId)
+  );
+  const nextPerson = {
+    id: updatedUser.personId
+  };
+
+  fields.forEach(field => {
+    nextPerson[field] = updatedUser[field] || '';
+  });
+
+  if (index === -1) {
+    peopleDatabase.push(nextPerson);
+  } else {
+    peopleDatabase[index] = {
+      ...peopleDatabase[index],
+      ...nextPerson
+    };
+  }
+
+  peopleDatabase.sort((left, right) =>
+    left.fullName.localeCompare(right.fullName, 'uk')
+  );
 }
 
 function showDeleteIcsUserConfirm(user) {
