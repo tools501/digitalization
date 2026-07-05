@@ -493,6 +493,10 @@ function renderIcsList() {
 
   list.replaceChildren();
   renderRegistryIcsFilter();
+  list.classList.toggle(
+    'is-filter-loading',
+    Boolean(registryIcsFilter && registryIcsFilter.loading)
+  );
   empty.textContent = registryIcsFilter && registryIcsFilter.ready
     ? 'Користувача не додано до ІКС'
     : 'Записи ІКС відсутні';
