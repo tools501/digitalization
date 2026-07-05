@@ -451,6 +451,7 @@ function renderCurrentView() {
 
   if (isRegistry) {
     renderIcsList();
+    renderRegistryUsersChanges();
     return;
   }
 
@@ -483,6 +484,117 @@ function renderIcsList() {
     card.addEventListener('click', () => openIcsDetails(item));
     list.appendChild(card);
   });
+}
+
+function renderRegistryUsersChanges() {
+  const panel = document.getElementById('registryUsersChanges');
+  const title = document.getElementById('registryUsersChangesTitle');
+  const list = document.getElementById('registryUsersChangesList');
+
+  list.replaceChildren();
+
+  if (!peopleDatabase || !bookPeople) {
+    panel.classList.remove('hidden');
+    title.textContent = 'Зміни по користувачах';
+    list.textContent = 'Перевіряємо зміни по користувачах…';
+    return;
+  }
+
+  const changes = getRegistryUsersChanges();
+
+  panel.classList.toggle('hidden', changes.length === 0);
+
+  if (!changes.length) {
+    return;
+  }
+
+  title.textContent = `Зміни по користувачах: ${changes.length}`;
+
+  changes.forEach(({ person, differences }) => {
+    const card = document.createElement('article');
+    const name = document.createElement('strong');
+    const details = document.createElement('ul');
+
+    card.className = 'user-change-card';
+    name.textContent = person.fullName;
+
+    Object.values(differences).forEach(difference => {
+      const item = document.createElement('li');
+
+      item.textContent =
+        `${difference.label}: ${difference.currentValue || 'Не вказано'} → ${difference.bookValue || 'Не вказано'}`;
+      details.appendChild(item);
+    });
+
+    card.append(name, details);
+    list.appendChild(card);
+  });
+}
+
+function getRegistryUsersChanges() {
+  if (!peopleDatabase || !bookPeople) {
+    return [];
+  }
+
+  const bookIndex = createBookPeopleIndex();
+
+  return peopleDatabase
+    .map(person => {
+      const bookPerson = findBookPersonForLocalPerson(person, bookIndex);
+      const differences = getIcsUserBookDifferences(person, bookPerson);
+
+      return Object.keys(differences).length
+        ? { person, differences }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) =>
+      left.person.fullName.localeCompare(right.person.fullName, 'uk')
+    );
+}
+
+function createBookPeopleIndex() {
+  const bySourceKey = new Map();
+  const byName = new Map();
+
+  bookPeople.forEach(bookPerson => {
+    if (bookPerson.sourceKey) {
+      bySourceKey.set(String(bookPerson.sourceKey), bookPerson);
+    }
+
+    const nameKey = normalizePersonNameForMatch(bookPerson.fullName);
+
+    if (!nameKey) {
+      return;
+    }
+
+    if (!byName.has(nameKey)) {
+      byName.set(nameKey, []);
+    }
+
+    byName.get(nameKey).push(bookPerson);
+  });
+
+  return { bySourceKey, byName };
+}
+
+function findBookPersonForLocalPerson(person, bookIndex = createBookPeopleIndex()) {
+  if (!bookPeople || !person) {
+    return null;
+  }
+
+  if (person.sourceKey) {
+    const sourceMatch = bookIndex.bySourceKey.get(String(person.sourceKey));
+
+    if (sourceMatch) {
+      return sourceMatch;
+    }
+  }
+
+  const personName = normalizePersonNameForMatch(person.fullName);
+  const nameMatches = bookIndex.byName.get(personName) || [];
+
+  return nameMatches.length === 1 ? nameMatches[0] : null;
 }
 
 async function loadPeopleDatabase(force = false) {
@@ -523,6 +635,7 @@ function fetchPeopleDatabase(force = false) {
         }
 
         peopleDatabase = Array.isArray(result.data) ? result.data : [];
+        renderRegistryUsersChangesIfVisible();
         return peopleDatabase;
       })
       .finally(() => {
@@ -541,6 +654,12 @@ function preloadPeopleDatabase() {
       timestamp: new Date().toISOString()
     });
   });
+}
+
+function renderRegistryUsersChangesIfVisible() {
+  if (activeDiagramId === ICS_REGISTRY_TAB_ID) {
+    renderRegistryUsersChanges();
+  }
 }
 
 function filterPeopleDatabase(queryValue) {
@@ -804,7 +923,6 @@ async function loadIcsUsers(force = false, options = {}) {
     document.getElementById('icsUsersEmpty').classList.add('hidden');
     document.getElementById('icsUsersList').replaceChildren();
     document.getElementById('icsUsersCount').textContent = '';
-    document.getElementById('icsUsersChanges').classList.add('hidden');
   }
 
   if (!force && icsUsersCache.has(icsId)) {
@@ -900,7 +1018,6 @@ function renderIcsUsers() {
   const count = document.getElementById('icsUsersCount');
 
   list.replaceChildren();
-  renderIcsUsersChanges();
   count.textContent = loadedIcsUsersId
     ? `Користувачів: ${icsUsers.length}`
     : '';
@@ -968,42 +1085,6 @@ function renderIcsUsers() {
     appendIcsUserDetail(details, 'Пошта', user.email, 'mailto');
     appendIcsUserDetail(details, 'Права доступу', user.accessRights, '', true);
     card.append(header, details);
-    list.appendChild(card);
-  });
-}
-
-function renderIcsUsersChanges() {
-  const panel = document.getElementById('icsUsersChanges');
-  const list = document.getElementById('icsUsersChangesList');
-  const usersWithChanges = icsUsers.filter(user =>
-    user.bookDifferences &&
-    Object.keys(user.bookDifferences).length > 0
-  );
-
-  list.replaceChildren();
-  panel.classList.toggle('hidden', usersWithChanges.length === 0);
-
-  if (!usersWithChanges.length) {
-    return;
-  }
-
-  usersWithChanges.forEach(user => {
-    const card = document.createElement('article');
-    const title = document.createElement('strong');
-    const changes = document.createElement('ul');
-
-    card.className = 'ics-user-change-card';
-    title.textContent = user.fullName;
-
-    Object.values(user.bookDifferences).forEach(difference => {
-      const item = document.createElement('li');
-
-      item.textContent =
-        `${difference.label}: ${difference.currentValue || 'Не вказано'} → ${difference.bookValue || 'Не вказано'}`;
-      changes.appendChild(item);
-    });
-
-    card.append(title, changes);
     list.appendChild(card);
   });
 }
@@ -1153,6 +1234,7 @@ function loadBookPeople(options = {}) {
       }
 
       bookPeople = Array.isArray(result.data) ? result.data : [];
+      renderRegistryUsersChangesIfVisible();
       return bookPeople;
     })
     .finally(() => {
@@ -1579,6 +1661,7 @@ function updatePersonInPeopleDatabase(updatedUser, fields) {
   peopleDatabase.sort((left, right) =>
     left.fullName.localeCompare(right.fullName, 'uk')
   );
+  renderRegistryUsersChangesIfVisible();
 }
 
 function showDeleteIcsUserConfirm(user) {
