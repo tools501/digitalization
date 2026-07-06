@@ -665,6 +665,7 @@ function getRegistryUsersChanges() {
   const bookIndex = createBookPeopleIndex();
 
   return peopleDatabase
+    .filter(person => Number(person.activeIcsCount || 0) > 0)
     .map(person => {
       const bookPerson = findBookPersonForLocalPerson(person, bookIndex);
       const differences = getIcsUserBookDifferences(person, bookPerson);
@@ -1667,13 +1668,19 @@ async function submitIcsUserForm(event) {
 
     const existingIndex = icsUsers.findIndex(user => user.id === result.data.id);
 
+    const membershipWasAdded = !wasEditing &&
+      !result.data.alreadyExists &&
+      existingIndex === -1;
+
     if (existingIndex === -1) {
       icsUsers.push(result.data);
     } else {
       icsUsers[existingIndex] = result.data;
     }
 
-    updatePersonInCachedIcsUsers(result.data);
+    updatePersonInCachedIcsUsers(result.data, {
+      activeIcsCountDelta: membershipWasAdded ? 1 : 0
+    });
     icsUsers.sort((left, right) => left.fullName.localeCompare(right.fullName));
     loadedIcsUsersId = activeIcsItem.id;
     icsUsersCache.set(activeIcsItem.id, icsUsers);
@@ -1706,7 +1713,7 @@ async function submitIcsUserForm(event) {
   }
 }
 
-function updatePersonInCachedIcsUsers(updatedUser) {
+function updatePersonInCachedIcsUsers(updatedUser, options = {}) {
   const personFields = [
     'sourceKey',
     'identityType',
@@ -1732,10 +1739,10 @@ function updatePersonInCachedIcsUsers(updatedUser) {
     });
   });
 
-  updatePersonInPeopleDatabase(updatedUser, personFields);
+  updatePersonInPeopleDatabase(updatedUser, personFields, options);
 }
 
-function updatePersonInPeopleDatabase(updatedUser, fields) {
+function updatePersonInPeopleDatabase(updatedUser, fields, options = {}) {
   if (!peopleDatabase || !updatedUser.personId) {
     return;
   }
@@ -1743,8 +1750,18 @@ function updatePersonInPeopleDatabase(updatedUser, fields) {
   const index = peopleDatabase.findIndex(person =>
     String(person.id) === String(updatedUser.personId)
   );
+  const currentActiveIcsCount = Number(
+    index === -1
+      ? 0
+      : peopleDatabase[index].activeIcsCount || 0
+  );
   const nextPerson = {
-    id: updatedUser.personId
+    id: updatedUser.personId,
+    activeIcsCount: Math.max(
+      Number(updatedUser.activeIcsCount || 0),
+      currentActiveIcsCount + Number(options.activeIcsCountDelta || 0),
+      1
+    )
   };
 
   fields.forEach(field => {
@@ -1762,6 +1779,26 @@ function updatePersonInPeopleDatabase(updatedUser, fields) {
 
   peopleDatabase.sort((left, right) =>
     left.fullName.localeCompare(right.fullName, 'uk')
+  );
+  renderRegistryUsersChangesIfVisible();
+}
+
+function decrementPersonActiveIcsCount(personId) {
+  if (!peopleDatabase || !personId) {
+    return;
+  }
+
+  const person = peopleDatabase.find(item =>
+    String(item.id) === String(personId)
+  );
+
+  if (!person) {
+    return;
+  }
+
+  person.activeIcsCount = Math.max(
+    Number(person.activeIcsCount || 0) - 1,
+    0
   );
   renderRegistryUsersChangesIfVisible();
 }
@@ -1795,6 +1832,7 @@ async function confirmDeleteIcsUser() {
 
     icsUsers = icsUsers.filter(existing => existing.id !== user.id);
     icsUsersCache.set(activeIcsItem.id, icsUsers);
+    decrementPersonActiveIcsCount(user.personId);
     activeIcsUser = null;
     returnToIcsUsers();
     showToast('Користувача видалено');
@@ -2298,5 +2336,3 @@ window.matchMedia(MOBILE_VIEWPORT_QUERY)
   .addEventListener('change', applyDiagramZoom);
 
 trySharedSession();
-
-/тест/ 
