@@ -475,6 +475,7 @@ function renderCurrentView() {
   if (isRegistry) {
     renderIcsList();
     renderRegistryUsersChanges();
+    renderRegistryDismissedUsers();
     return;
   }
 
@@ -634,27 +635,70 @@ function renderRegistryUsersChanges() {
   title.textContent = `Зміни по користувачах: ${changes.length}`;
 
   changes.forEach(({ person, differences }) => {
-    const card = document.createElement('article');
-    const name = document.createElement('button');
-    const details = document.createElement('ul');
-
-    card.className = 'user-change-card';
-    name.type = 'button';
-    name.className = 'user-change-name';
-    name.textContent = person.fullName;
-    name.addEventListener('click', () => showRegistryIcsForPerson(person));
-
-    Object.values(differences).forEach(difference => {
-      const item = document.createElement('li');
-
-      item.textContent =
-        `${difference.label}: ${difference.currentValue || 'Не вказано'} → ${difference.bookValue || 'Не вказано'}`;
-      details.appendChild(item);
-    });
-
-    card.append(name, details);
-    list.appendChild(card);
+    list.appendChild(createRegistryUserCard(
+      person,
+      Object.values(differences).map(difference =>
+        `${difference.label}: ${difference.currentValue || 'Не вказано'} → ${difference.bookValue || 'Не вказано'}`
+      )
+    ));
   });
+}
+
+function renderRegistryDismissedUsers() {
+  const panel = document.getElementById('registryDismissedUsers');
+  const title = document.getElementById('registryDismissedUsersTitle');
+  const list = document.getElementById('registryDismissedUsersList');
+
+  list.replaceChildren();
+
+  if (!peopleDatabase || !bookPeople) {
+    panel.classList.remove('hidden');
+    title.textContent = 'Звільнені з доступами';
+    list.textContent = 'Перевіряємо звільнених користувачів…';
+    return;
+  }
+
+  const dismissedUsers = getRegistryDismissedUsersWithAccess();
+
+  panel.classList.toggle('hidden', dismissedUsers.length === 0);
+
+  if (!dismissedUsers.length) {
+    return;
+  }
+
+  title.textContent = `Звільнені з доступами: ${dismissedUsers.length}`;
+
+  dismissedUsers.forEach(({ person, bookPerson }) => {
+    list.appendChild(createRegistryUserCard(
+      person,
+      [
+        `Статус у Book: ${bookPerson.serviceStatus}`,
+        `Активних ІКС: ${person.activeIcsCount}`
+      ]
+    ));
+  });
+}
+
+function createRegistryUserCard(person, rows) {
+  const card = document.createElement('article');
+  const name = document.createElement('button');
+  const details = document.createElement('ul');
+
+  card.className = 'user-change-card';
+  name.type = 'button';
+  name.className = 'user-change-name';
+  name.textContent = person.fullName;
+  name.addEventListener('click', () => showRegistryIcsForPerson(person));
+
+  rows.forEach(text => {
+    const item = document.createElement('li');
+
+    item.textContent = text;
+    details.appendChild(item);
+  });
+
+  card.append(name, details);
+  return card;
 }
 
 function getRegistryUsersChanges() {
@@ -668,6 +712,11 @@ function getRegistryUsersChanges() {
     .filter(person => Number(person.activeIcsCount || 0) > 0)
     .map(person => {
       const bookPerson = findBookPersonForLocalPerson(person, bookIndex);
+
+      if (isDismissedBookPerson(bookPerson)) {
+        return null;
+      }
+
       const differences = getIcsUserBookDifferences(person, bookPerson);
 
       return Object.keys(differences).length
@@ -678,6 +727,33 @@ function getRegistryUsersChanges() {
     .sort((left, right) =>
       left.person.fullName.localeCompare(right.person.fullName, 'uk')
     );
+}
+
+function getRegistryDismissedUsersWithAccess() {
+  if (!peopleDatabase || !bookPeople) {
+    return [];
+  }
+
+  const bookIndex = createBookPeopleIndex();
+
+  return peopleDatabase
+    .filter(person => Number(person.activeIcsCount || 0) > 0)
+    .map(person => {
+      const bookPerson = findBookPersonForLocalPerson(person, bookIndex);
+
+      return isDismissedBookPerson(bookPerson)
+        ? { person, bookPerson }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) =>
+      left.person.fullName.localeCompare(right.person.fullName, 'uk')
+    );
+}
+
+function isDismissedBookPerson(bookPerson) {
+  return Boolean(bookPerson) &&
+    normalizeBookCompareValue(bookPerson.serviceStatus) === 'Звільнений';
 }
 
 function createBookPeopleIndex() {
@@ -776,6 +852,7 @@ function fetchPeopleDatabase(force = false) {
 function renderRegistryUsersChangesIfVisible() {
   if (activeDiagramId === ICS_REGISTRY_TAB_ID) {
     renderRegistryUsersChanges();
+    renderRegistryDismissedUsers();
   }
 }
 
