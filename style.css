@@ -882,6 +882,22 @@ button.person-ics-card:focus-visible {
   font-size: 14px;
 }
 
+.dismissed-users-board {
+  border-color: #f0b4a8;
+  background: #fff1ef;
+}
+
+.dismissed-users-board h3,
+.dismissed-users-board .users-changes-list,
+.dismissed-users-board .user-change-card ul {
+  color: #8f2416;
+}
+
+.dismissed-users-board .user-change-card {
+  border-color: #f0b4a8;
+  background: #fffafa;
+}
+
 .users-changes-list {
   display: grid;
   gap: 8px;
@@ -1270,5 +1286,3 @@ button.person-ics-card:focus-visible {
   }
 
 }
-
-/* тест */
