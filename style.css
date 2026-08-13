@@ -71,9 +71,7 @@ button {
 
 .auth-card h1 {
   margin: 0 0 22px;
-  font-family: var(--pixel-font);
   font-size: 20px;
-  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -248,7 +246,6 @@ button {
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-family: var(--pixel-font);
   font-weight: 650;
 }
 
@@ -634,7 +631,6 @@ button.person-ics-card:focus-visible {
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-family: var(--pixel-font);
   font-weight: 650;
 }
 
