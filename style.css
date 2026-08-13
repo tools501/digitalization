@@ -9,6 +9,7 @@
   --line: #9aa0a6;
   --accent: #151719;
   --shadow: 0 8px 24px rgba(23, 25, 28, .07);
+  --pixel-font: "Pixelify Sans", Inter, Arial, sans-serif;
 }
 
 * {
@@ -70,7 +71,9 @@ button {
 
 .auth-card h1 {
   margin: 0 0 22px;
+  font-family: var(--pixel-font);
   font-size: 20px;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -212,8 +215,10 @@ button {
 
 .topbar h1 {
   margin: 0;
-  font-size: 24px;
-  letter-spacing: 0;
+  font-family: var(--pixel-font);
+  font-size: 31px;
+  font-weight: 700;
+  letter-spacing: .01em;
 }
 
 .topbar p {
@@ -243,6 +248,7 @@ button {
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
+  font-family: var(--pixel-font);
   font-weight: 650;
 }
 
@@ -628,6 +634,7 @@ button.person-ics-card:focus-visible {
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--muted);
+  font-family: var(--pixel-font);
   font-weight: 650;
 }
 
@@ -1152,7 +1159,7 @@ button.person-ics-card:focus-visible {
   }
 
   .topbar h1 {
-    font-size: 20px;
+    font-size: 27px;
   }
 
   .tabs {
