@@ -3,6 +3,7 @@ const HUB_API_URL =
   'https://script.google.com/macros/s/AKfycbyAHpUfM1RrPJbamCVcc5rGhUgRKoLRKSULBGnCNGLyCSaFU5lp7SX2Ge1Wwv9YEV5-Sg/exec';
 const HUB_URL = '/hub/';
 const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
+const TWO_FACTOR_CHECK_ENABLED = false;
 const REQUEST_TIMEOUT_MS = 25000;
 const WRITE_REQUEST_TIMEOUT_MS = 60000;
 const LONG_READ_REQUEST_TIMEOUT_MS = 60000;
@@ -348,7 +349,10 @@ async function authenticateWithToken(token, options = {}) {
   showOnly('loader');
 
   try {
-    if (!options.skipTwoFactor) {
+    if (
+      TWO_FACTOR_CHECK_ENABLED &&
+      !options.skipTwoFactor
+    ) {
       const canContinue = await ensureTwoFactorAccess(
         token,
         options
