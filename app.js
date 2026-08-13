@@ -5,6 +5,14 @@ const HUB_URL = '/hub/';
 const SHARED_AUTH_TOKEN_KEY = 'tools501_google_id_token';
 const REQUEST_TIMEOUT_MS = 25000;
 const WRITE_REQUEST_TIMEOUT_MS = 60000;
+const LONG_READ_REQUEST_TIMEOUT_MS = 60000;
+const LONG_READ_PROJECT_ACTIONS = new Set([
+  'bootstrap',
+  'getBookPeople',
+  'getPeople',
+  'getIcsUsers',
+  'getDiagram'
+]);
 const LONG_PROJECT_ACTIONS = new Set([
   'createIcs',
   'updateIcs',
@@ -204,6 +212,8 @@ async function projectApi(action, data = {}, token = authToken) {
     method: 'POST',
     timeoutMs: LONG_PROJECT_ACTIONS.has(action)
       ? WRITE_REQUEST_TIMEOUT_MS
+      : LONG_READ_PROJECT_ACTIONS.has(action)
+      ? LONG_READ_REQUEST_TIMEOUT_MS
       : REQUEST_TIMEOUT_MS
   });
 }
