@@ -94,6 +94,32 @@
     </section>
   </div>
 
+  <div id="sessionExpiredPage" class="auth-screen hidden">
+    <section class="auth-card session-expired-card">
+      <h1>Сесія завершилась</h1>
+      <p class="auth-text">
+        Авторизація більше не активна. Оновіть сесію, щоб продовжити роботу.
+      </p>
+      <div class="auth-actions single-action">
+        <button id="reloadSessionBtn" class="button button-primary" type="button">
+          Оновити
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div
+    id="sessionWarning"
+    class="session-warning hidden"
+    role="status"
+    aria-live="polite"
+  >
+    <span id="sessionWarningText">Сесія скоро завершиться</span>
+    <button id="reloadWarningBtn" class="button button-primary" type="button">
+      Оновити
+    </button>
+  </div>
+
   <main id="app" class="app hidden">
     <header class="topbar">
       <div>
