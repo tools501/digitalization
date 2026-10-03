@@ -22,11 +22,17 @@ const LONG_PROJECT_ACTIONS = new Set([
   'updateIcsUser',
   'deleteIcsUser'
 ]);
+const TOKEN_EXPIRY_SAFETY_MS = 2 * 60 * 1000;
 const MOBILE_VIEWPORT_QUERY = '(max-width: 760px)';
 const ICS_REGISTRY_TAB_ID = 'ics-registry';
 const PEOPLE_ICS_TAB_ID = 'people-ics';
 
 let authToken = '';
+let sessionTimer = null;
+let sessionExpireTimer = null;
+let sessionCountdownTimer = null;
+let sessionExpiresAt = 0;
+let sessionExpired = false;
 let pendingTwoFactorAuth = null;
 let diagrams = [];
 let icsSystems = [];
@@ -54,7 +60,14 @@ let apiRequestSequence = 0;
 
 function getSharedAuthToken() {
   try {
-    return sessionStorage.getItem(SHARED_AUTH_TOKEN_KEY);
+    const token = sessionStorage.getItem(SHARED_AUTH_TOKEN_KEY);
+
+    if (token && !isTokenActive(token)) {
+      clearSharedAuthToken();
+      return null;
+    }
+
+    return token;
   } catch (error) {
     return null;
   }
@@ -76,6 +89,132 @@ function clearSharedAuthToken() {
   }
 }
 
+function getTokenExpirationMs(token) {
+  try {
+    const payload = JSON.parse(
+      atob(
+        String(token || '')
+          .split('.')[1]
+          .replace(/-/g, '+')
+          .replace(/_/g, '/')
+      )
+    );
+
+    return Number(payload.exp) * 1000;
+  } catch (error) {
+    return 0;
+  }
+}
+
+function getSafeTokenExpirationMs(token) {
+  const expirationMs = getTokenExpirationMs(token);
+
+  if (!expirationMs) {
+    return 0;
+  }
+
+  return expirationMs - TOKEN_EXPIRY_SAFETY_MS;
+}
+
+function isTokenActive(token) {
+  return getSafeTokenExpirationMs(token) > Date.now();
+}
+
+function clearSessionTimers() {
+  clearTimeout(sessionTimer);
+  clearTimeout(sessionExpireTimer);
+  clearInterval(sessionCountdownTimer);
+
+  sessionTimer = null;
+  sessionExpireTimer = null;
+  sessionCountdownTimer = null;
+}
+
+function hideSessionWarning() {
+  document
+    .getElementById('sessionWarning')
+    .classList.add('hidden');
+}
+
+function expireSession() {
+  if (sessionExpired) {
+    return;
+  }
+
+  sessionExpired = true;
+  authToken = '';
+  clearSessionTimers();
+  clearSharedAuthToken();
+  hideSessionWarning();
+  showOnly('sessionExpiredPage');
+}
+
+function renewSession() {
+  authToken = '';
+  sessionExpired = true;
+  clearSessionTimers();
+  clearSharedAuthToken();
+  hideSessionWarning();
+  showOnly('loginPage');
+}
+
+function startSessionTimer(token) {
+  clearSessionTimers();
+
+  sessionExpired = false;
+  sessionExpiresAt =
+    getSafeTokenExpirationMs(token) ||
+    Date.now() + 55 * 60 * 1000;
+
+  hideSessionWarning();
+  updateSessionWarningText();
+
+  const remainingMs = sessionExpiresAt - Date.now();
+
+  if (remainingMs <= 0) {
+    expireSession();
+    return;
+  }
+
+  sessionTimer = setTimeout(() => {
+    updateSessionWarningText();
+
+    document
+      .getElementById('sessionWarning')
+      .classList.remove('hidden');
+
+    sessionCountdownTimer = setInterval(
+      updateSessionWarningText,
+      1000
+    );
+  }, Math.max(0, remainingMs - 5 * 60 * 1000));
+
+  sessionExpireTimer = setTimeout(
+    expireSession,
+    remainingMs
+  );
+}
+
+function formatSessionCountdown(ms) {
+  const totalSeconds = Math.max(
+    0,
+    Math.ceil(ms / 1000)
+  );
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function updateSessionWarningText() {
+  const remaining = sessionExpiresAt - Date.now();
+
+  document
+    .getElementById('sessionWarningText')
+    .textContent =
+      `Сесія завершиться через ${formatSessionCountdown(remaining)}`;
+}
+
 function showOnly(id) {
   [
     'loginPage',
@@ -83,6 +222,7 @@ function showOnly(id) {
     'twoFactorPage',
     'deniedPage',
     'networkErrorPage',
+    'sessionExpiredPage',
     'app'
   ].forEach(elementId => {
     document
@@ -204,7 +344,7 @@ async function projectApi(action, data = {}, token = authToken) {
     })
   );
 
-  return requestJson(API_URL, {
+  const result = await requestJson(API_URL, {
     method: 'POST',
     body
   }, {
@@ -217,6 +357,13 @@ async function projectApi(action, data = {}, token = authToken) {
       ? LONG_READ_REQUEST_TIMEOUT_MS
       : REQUEST_TIMEOUT_MS
   });
+
+  if (!result.success && result.error === 'AUTH_REQUIRED') {
+    expireSession();
+    throw new Error('AUTH_REQUIRED');
+  }
+
+  return result;
 }
 
 async function hubApi(action, data = {}, token = authToken) {
@@ -340,11 +487,22 @@ async function submitTwoFactorCode() {
 function cancelTwoFactor() {
   pendingTwoFactorAuth = null;
   authToken = '';
+  clearSessionTimers();
   clearSharedAuthToken();
   showOnly('loginPage');
 }
 
 async function authenticateWithToken(token, options = {}) {
+  if (!isTokenActive(token)) {
+    authToken = '';
+    clearSessionTimers();
+    clearSharedAuthToken();
+    showOnly('loginPage');
+    return;
+  }
+
+  sessionExpired = false;
+  hideSessionWarning();
   authToken = token;
   showOnly('loader');
 
@@ -381,10 +539,15 @@ async function authenticateWithToken(token, options = {}) {
     applyBootstrap(result.data);
     await loadStartupData();
     renderRegistryUsersChangesIfVisible();
+    startSessionTimer(token);
     showOnly('app');
   } catch (error) {
     console.error(error);
     authToken = '';
+
+    if (error.message === 'AUTH_REQUIRED') {
+      return;
+    }
 
     if (options.fromSharedSession) {
       if (isTransientRequestError(error)) {
@@ -2362,6 +2525,10 @@ document.getElementById('networkHubBtn')
   .addEventListener('click', goToHub);
 document.getElementById('networkRetryBtn')
   .addEventListener('click', trySharedSession);
+document.getElementById('reloadSessionBtn')
+  .addEventListener('click', renewSession);
+document.getElementById('reloadWarningBtn')
+  .addEventListener('click', renewSession);
 document.getElementById('peopleSearchBtn')
   .addEventListener('click', () => loadPeopleDatabase(true));
 document.getElementById('peopleSearchInput')
