@@ -403,6 +403,7 @@ function getDismissedBookMatchForLocalPerson(
 
   if (
     !matches.length ||
+    hasNonDismissedBookPersonWithSameName(person) ||
     matches.some(bookPerson => !isDismissedBookPerson(bookPerson))
   ) {
     return null;
