@@ -345,7 +345,7 @@ function getRegistryUsersChanges() {
     .map(person => {
       const bookPerson = findBookPersonForLocalPerson(person, bookIndex);
 
-      if (isDismissedBookPerson(bookPerson)) {
+      if (getDismissedBookMatchForLocalPerson(person, bookIndex)) {
         return null;
       }
 
@@ -371,9 +371,12 @@ function getRegistryDismissedUsersWithAccess() {
   return peopleDatabase
     .filter(person => Number(person.activeIcsCount || 0) > 0)
     .map(person => {
-      const bookPerson = findBookPersonForLocalPerson(person, bookIndex);
+      const bookPerson = getDismissedBookMatchForLocalPerson(
+        person,
+        bookIndex
+      );
 
-      return isDismissedBookPerson(bookPerson)
+      return bookPerson
         ? { person, bookPerson }
         : null;
     })
@@ -386,6 +389,22 @@ function getRegistryDismissedUsersWithAccess() {
 function isDismissedBookPerson(bookPerson) {
   return Boolean(bookPerson) &&
     normalizeBookCompareValue(bookPerson.serviceStatus) === 'Звільнений';
+}
+
+function getDismissedBookMatchForLocalPerson(
+  person,
+  bookIndex = createBookPeopleIndex()
+) {
+  const matches = getBookMatchesForLocalPerson(person, bookIndex);
+
+  if (
+    !matches.length ||
+    matches.some(bookPerson => !isDismissedBookPerson(bookPerson))
+  ) {
+    return null;
+  }
+
+  return matches.find(isDismissedBookPerson) || null;
 }
 
 function createBookPeopleIndex() {
@@ -413,23 +432,65 @@ function createBookPeopleIndex() {
   return { bySourceKey, byName };
 }
 
-function findBookPersonForLocalPerson(person, bookIndex = createBookPeopleIndex()) {
+function getBookMatchesForLocalPerson(
+  person,
+  bookIndex = createBookPeopleIndex()
+) {
   if (!bookPeople || !person) {
-    return null;
+    return [];
+  }
+
+  const matches = [];
+  const seen = new Set();
+
+  function addMatch(bookPerson) {
+    if (!bookPerson) {
+      return;
+    }
+
+    const key = bookPerson.sourceKey
+      ? `source:${bookPerson.sourceKey}`
+      : `name:${bookPerson.fullName}|status:${bookPerson.serviceStatus}|rank:${bookPerson.rank}|position:${bookPerson.position}`;
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    matches.push(bookPerson);
   }
 
   if (person.sourceKey) {
-    const sourceMatch = bookIndex.bySourceKey.get(String(person.sourceKey));
-
-    if (sourceMatch) {
-      return sourceMatch;
-    }
+    addMatch(bookIndex.bySourceKey.get(String(person.sourceKey)));
   }
 
   const personName = normalizePersonNameForMatch(person.fullName);
   const nameMatches = bookIndex.byName.get(personName) || [];
 
-  return nameMatches.length === 1 ? nameMatches[0] : null;
+  nameMatches.forEach(addMatch);
+
+  return matches;
+}
+
+function findBookPersonForLocalPerson(person, bookIndex = createBookPeopleIndex()) {
+  const matches = getBookMatchesForLocalPerson(person, bookIndex);
+
+  if (!matches.length) {
+    return null;
+  }
+
+  const nonDismissedMatches =
+    matches.filter(bookPerson => !isDismissedBookPerson(bookPerson));
+
+  if (nonDismissedMatches.length === 1) {
+    return nonDismissedMatches[0];
+  }
+
+  if (nonDismissedMatches.length > 1) {
+    return null;
+  }
+
+  return matches.length === 1 ? matches[0] : null;
 }
 
 async function loadPeopleDatabase(force = false) {
@@ -1083,23 +1144,15 @@ function syncIcsUsersWithBookPeople(options = {}) {
     return;
   }
 
-  const peopleBySourceKey = new Map();
-
-  bookPeople.forEach(person => {
-    if (person.sourceKey) {
-      peopleBySourceKey.set(person.sourceKey, person);
-    }
-  });
-
-  if (!peopleBySourceKey.size) {
-    return;
-  }
-
+  const bookIndex = createBookPeopleIndex();
   let changed = false;
 
   icsUsersCache.forEach(users => {
     users.forEach(user => {
-      const bookPerson = peopleBySourceKey.get(user.sourceKey);
+      const bookPerson = findBookPersonForLocalPerson(
+        user,
+        bookIndex
+      );
       const nextDifferences = getIcsUserBookDifferences(
         user,
         bookPerson
