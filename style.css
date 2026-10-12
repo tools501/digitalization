@@ -51,7 +51,7 @@ button {
 .loader-screen {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,7 +156,7 @@ button {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 220;
+  z-index: 520;
   display: flex;
   align-items: center;
   gap: 12px;
