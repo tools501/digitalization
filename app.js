@@ -414,6 +414,7 @@ function getDismissedBookMatchForLocalPerson(
 function createBookPeopleIndex() {
   const bySourceKey = new Map();
   const byName = new Map();
+  const byLooseName = new Map();
 
   bookPeople.forEach(bookPerson => {
     if (bookPerson.sourceKey) {
@@ -421,19 +422,26 @@ function createBookPeopleIndex() {
     }
 
     const nameKey = normalizePersonNameForMatch(bookPerson.fullName);
+    const looseNameKey = normalizePersonNameLooseForMatch(bookPerson.fullName);
 
-    if (!nameKey) {
-      return;
+    if (nameKey) {
+      if (!byName.has(nameKey)) {
+        byName.set(nameKey, []);
+      }
+
+      byName.get(nameKey).push(bookPerson);
     }
 
-    if (!byName.has(nameKey)) {
-      byName.set(nameKey, []);
-    }
+    if (looseNameKey) {
+      if (!byLooseName.has(looseNameKey)) {
+        byLooseName.set(looseNameKey, []);
+      }
 
-    byName.get(nameKey).push(bookPerson);
+      byLooseName.get(looseNameKey).push(bookPerson);
+    }
   });
 
-  return { bySourceKey, byName };
+  return { bySourceKey, byName, byLooseName };
 }
 
 function getBookMatchesForLocalPerson(
@@ -470,8 +478,11 @@ function getBookMatchesForLocalPerson(
 
   const personName = normalizePersonNameForMatch(person.fullName);
   const nameMatches = bookIndex.byName.get(personName) || [];
+  const loosePersonName = normalizePersonNameLooseForMatch(person.fullName);
+  const looseNameMatches = bookIndex.byLooseName.get(loosePersonName) || [];
 
   nameMatches.forEach(addMatch);
+  looseNameMatches.forEach(addMatch);
 
   return matches;
 }
@@ -1345,6 +1356,14 @@ function normalizePersonNameForMatch(value) {
     .trim()
     .toLocaleLowerCase('uk')
     .replace(/\s+/g, ' ');
+}
+
+function normalizePersonNameLooseForMatch(value) {
+  return String(value || '')
+    .trim()
+    .toLocaleLowerCase('uk')
+    .replace(/[’ʼ`]/g, "'")
+    .replace(/[^0-9a-zа-щьюяґєії']/giu, '');
 }
 
 function handleIcsUserNameInput() {
