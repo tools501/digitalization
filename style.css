@@ -112,6 +112,10 @@ button {
   margin-top: 18px;
 }
 
+.auth-actions.single-action {
+  grid-template-columns: 1fr;
+}
+
 .button {
   min-height: 38px;
   padding: 0 14px;
@@ -146,6 +150,36 @@ button {
 .button:disabled {
   cursor: wait;
   opacity: .55;
+}
+
+.session-warning {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.session-warning span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.session-warning .button {
+  min-height: 32px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .loader-grid {
@@ -1140,6 +1174,18 @@ button.person-ics-card:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .session-warning {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
+    justify-content: space-between;
+  }
+
+  .session-warning span {
+    font-size: 13px;
+  }
+
   .app {
     width: min(100% - 24px, 1440px);
     padding-top: 14px;
