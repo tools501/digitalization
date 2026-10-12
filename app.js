@@ -926,7 +926,7 @@ function renderIcsUsers() {
         user,
         findBookPersonForLocalPerson(user, bookIndex)
       )
-      : user.bookDifferences;
+      : {};
     const card = document.createElement('article');
     const header = document.createElement('div');
     const identity = document.createElement('div');
