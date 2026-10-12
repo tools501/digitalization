@@ -903,6 +903,9 @@ function renderIcsUsers() {
   const list = document.getElementById('icsUsersList');
   const empty = document.getElementById('icsUsersEmpty');
   const count = document.getElementById('icsUsersCount');
+  const bookIndex = bookPeople && bookPeople.length
+    ? createBookPeopleIndex()
+    : null;
 
   list.replaceChildren();
   count.textContent = loadedIcsUsersId
@@ -914,6 +917,12 @@ function renderIcsUsers() {
   );
 
   icsUsers.forEach(user => {
+    const bookDifferences = bookIndex
+      ? getIcsUserBookDifferences(
+        user,
+        findBookPersonForLocalPerson(user, bookIndex)
+      )
+      : user.bookDifferences;
     const card = document.createElement('article');
     const header = document.createElement('div');
     const identity = document.createElement('div');
@@ -941,7 +950,7 @@ function renderIcsUsers() {
           field,
           label,
           value,
-          user.bookDifferences
+          bookDifferences
         )
       );
     });
@@ -966,7 +975,7 @@ function renderIcsUsers() {
       user.position,
       '',
       false,
-      user.bookDifferences && user.bookDifferences.position
+      bookDifferences && bookDifferences.position
     );
     appendIcsUserDetail(details, 'Телефон', user.phone, 'tel');
     appendIcsUserDetail(details, 'Пошта', user.email, 'mailto');
