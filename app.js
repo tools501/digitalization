@@ -388,7 +388,11 @@ function getRegistryDismissedUsersWithAccess() {
 
 function isDismissedBookPerson(bookPerson) {
   return Boolean(bookPerson) &&
-    normalizeBookCompareValue(bookPerson.serviceStatus) === 'Звільнений';
+    isDismissedStatus(bookPerson.serviceStatus);
+}
+
+function isDismissedStatus(status) {
+  return normalizeBookCompareValue(status) === 'Звільнений';
 }
 
 function getDismissedBookMatchForLocalPerson(
