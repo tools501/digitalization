@@ -938,6 +938,8 @@ function renderIcsUsers() {
         findBookPersonForLocalPerson(user, bookIndex)
       )
       : {};
+    const displayBookDifferences =
+      filterIcsUserBookDifferencesForDisplay(user, bookDifferences);
     const card = document.createElement('article');
     const header = document.createElement('div');
     const identity = document.createElement('div');
@@ -965,7 +967,7 @@ function renderIcsUsers() {
           field,
           label,
           value,
-          bookDifferences
+          displayBookDifferences
         )
       );
     });
@@ -990,7 +992,7 @@ function renderIcsUsers() {
       user.position,
       '',
       false,
-      bookDifferences && bookDifferences.position
+      displayBookDifferences && displayBookDifferences.position
     );
     appendIcsUserDetail(details, 'Телефон', user.phone, 'tel');
     appendIcsUserDetail(details, 'Пошта', user.email, 'mailto');
@@ -1235,6 +1237,41 @@ function getIcsUserBookDifferences(user, bookPerson) {
   });
 
   return differences;
+}
+
+function filterIcsUserBookDifferencesForDisplay(user, differences) {
+  if (!differences || !differences.serviceStatus) {
+    return differences || {};
+  }
+
+  if (
+    isDismissedStatus(differences.serviceStatus.bookValue) &&
+    hasNonDismissedBookPersonWithSameName(user)
+  ) {
+    const filtered = { ...differences };
+
+    delete filtered.serviceStatus;
+    return filtered;
+  }
+
+  return differences;
+}
+
+function hasNonDismissedBookPersonWithSameName(person) {
+  if (!bookPeople || !person) {
+    return false;
+  }
+
+  const nameKey = normalizePersonNameLooseForMatch(person.fullName);
+
+  if (!nameKey) {
+    return false;
+  }
+
+  return bookPeople.some(bookPerson =>
+    normalizePersonNameLooseForMatch(bookPerson.fullName) === nameKey &&
+    !isDismissedBookPerson(bookPerson)
+  );
 }
 
 function normalizeBookCompareValue(value) {
