@@ -349,7 +349,10 @@ function getRegistryUsersChanges() {
         return null;
       }
 
-      const differences = getIcsUserBookDifferences(person, bookPerson);
+      const differences = filterIcsUserBookDifferencesForDisplay(
+        person,
+        getIcsUserBookDifferences(person, bookPerson)
+      );
 
       return Object.keys(differences).length
         ? { person, differences }
