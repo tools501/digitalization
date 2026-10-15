@@ -1042,7 +1042,23 @@ function appendIcsUserDetail(
   ].filter(Boolean).join(' ');
   title.textContent = label;
 
-  if (value && linkType) {
+  if (value && linkType === 'mailto') {
+    const emails = [...new Set(
+      String(value).split(',').map(email => email.trim().toLowerCase()).filter(Boolean)
+    )];
+
+    emails.forEach((email, index) => {
+      const link = document.createElement('a');
+
+      if (index > 0) {
+        content.appendChild(document.createTextNode('\n'));
+      }
+
+      link.href = `mailto:${encodeURIComponent(email)}`;
+      link.textContent = email;
+      content.appendChild(link);
+    });
+  } else if (value && linkType) {
     const link = document.createElement('a');
 
     link.href = `${linkType}:${value}`;
@@ -1532,7 +1548,7 @@ async function submitIcsUserForm(event) {
     console.error(error);
     const messages = {
       ICS_USER_NAME_REQUIRED: 'ПІБ має містити від 2 до 150 символів',
-      ICS_USER_EMAIL_INVALID: 'Вкажіть коректну адресу пошти',
+      ICS_USER_EMAIL_INVALID: 'Перевірте адреси пошти: кілька адрес вказуйте через кому',
       ICS_USER_PHONE_INVALID: 'Вкажіть телефон у форматі +380 67 123 45 67',
       PERSON_IDENTITY_AMBIGUOUS: 'Знайдено декілька людей з однаковим ПІБ',
       ICS_TEXT_TOO_LONG: 'Одне з полів перевищує допустиму довжину'
